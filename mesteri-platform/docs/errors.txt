@@ -1,0 +1,83 @@
+PS C:\Users\TEODO\Desktop\Facultate\Cod C++\AplicatieMesteri\mesteri-platform\app_client> flutter run --debug
+Connected devices:
+Windows (desktop) • windows • windows-x64    • Microsoft Windows [Version 10.0.26100.6584]
+Chrome (web)      • chrome  • web-javascript • Google Chrome 140.0.7339.185
+[1]: Windows (windows)
+[2]: Chrome (chrome)
+Please choose one (or "q" to quit): 1
+Resolving dependencies... 
+Downloading packages... 
+  _flutterfire_internals 1.3.59 (1.3.62 available)
+  characters 1.4.0 (1.4.1 available)
+  cloud_firestore 5.6.12 (6.0.2 available)
+  cloud_firestore_platform_interface 6.6.12 (7.0.2 available)
+  cloud_firestore_web 4.4.12 (5.0.2 available)
+  connectivity_plus 6.1.5 (7.0.0 available)
+  firebase_analytics 11.6.0 (12.0.2 available)
+  firebase_analytics_platform_interface 4.4.3 (5.0.2 available)
+  firebase_analytics_web 0.5.10+16 (0.6.0+2 available)
+  firebase_auth 5.7.0 (6.1.0 available)
+  firebase_auth_platform_interface 7.7.3 (8.1.2 available)
+  firebase_auth_web 5.15.3 (6.0.3 available)
+  firebase_core 3.15.2 (4.1.1 available)
+  firebase_core_web 2.24.1 (3.1.1 available)
+  firebase_crashlytics 4.3.10 (5.0.2 available)
+  firebase_crashlytics_platform_interface 3.8.10 (3.8.13 available)
+  flutter_lints 5.0.0 (6.0.0 available)
+  flutter_secure_storage_linux 1.2.3 (2.0.1 available)
+  flutter_secure_storage_macos 3.1.3 (4.0.0 available)
+  flutter_secure_storage_platform_interface 1.1.2 (2.0.1 available)
+  flutter_secure_storage_web 1.2.1 (2.0.0 available)
+  flutter_secure_storage_windows 3.1.2 (4.0.0 available)
+  go_router 14.8.1 (16.2.4 available)
+  intl 0.19.0 (0.20.2 available)
+  js 0.6.7 (0.7.2 available)
+  leak_tracker 11.0.1 (11.0.2 available)
+  lints 5.1.1 (6.0.0 available)
+  lottie 3.3.1 (3.3.2 available)
+  material_color_utilities 0.11.1 (0.13.0 available)
+  meta 1.16.0 (1.17.0 available)
+  shared_preferences_android 2.4.12 (2.4.13 available)
+  test_api 0.7.6 (0.7.7 available)
+Got dependencies!
+32 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Launching lib\main.dart on Windows in debug mode...
+CMake Deprecation Warning at C:/Users/TEODO/Desktop/Facultate/Cod C++/AplicatieMesteri/mesteri-platform/app_client/build/windows/x64/extracted/firebase_cpp_sdk_windows/CMakeLists.txt:17 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+Building Windows application...                                    11.5s
+√ Built build\windows\x64\runner\Debug\app_client.exe
+ Firebase initialized successfully for client app
+👤 User signed out
+👤 User signed out
+Syncing files to device Windows...                                  80ms
+
+Flutter run key commands.
+r Hot reload.
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on Windows is available at: http://127.0.0.1:56144/OfUUCYpaYoQ=/
+The Flutter DevTools debugger and profiler on Windows is available at: http://127.0.0.1:9101?uri=http://127.0.0.1:56144/OfUUCYpaYoQ=/
+[ERROR:flutter/shell/common/shell.cc(1120)] The 'firebase_auth_plugin/auth-state/[DEFAULT]' channel sent a message from native to Flutter on a non-platform thread. Platform channel messages must be sent on the platform thread. Failure to do so may result in data loss or crashes, and must be fixed in the plugin or application code creating that channel.
+See https://docs.flutter.dev/platform-integration/platform-channels#channels-and-platform-threading for more information.
+[ERROR:flutter/shell/common/shell.cc(1120)] The 'firebase_auth_plugin/id-token/[DEFAULT]' channel sent a message from native to Flutter on a non-platform thread. Platform channel messages must be sent on the platform thread. Failure to do so may result in data loss or crashes, and must be fixed in the plugin or application code creating that channel.
+See https://docs.flutter.dev/platform-integration/platform-channels#channels-and-platform-threading for more information.
+👤 User signed in: teodor.negura21@gmail.com
+dYO? API Request: POST http://localhost:3000/api/firebase-auth/sync-user
+dY" Request Body: {uid: MrDZoLT2oreR6weQoxGRZ7QT4mf2, email: teodor.negura21@gmail.com, name: , role: client}
+dY"< Headers: {Accept: application/json, Content-Type: application/json, Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjA1NTc3MjZmYWIxMjMxZmEyZGNjNTcyMWExMDgzZGE2ODBjNGE3M2YiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vdHJ1ZXdvcmtlcnMtZGV2IiwiYXVkIjoidHJ1ZXdvcmtlcnMtZGV2IiwiYXV0aF90aW1lIjoxNzU4NzIzOTQwLCJ1c2VyX2lkIjoiTXJEWm9MVDJvcmVSNndlUW94R1JaN1FUNG1mMiIsInN1YiI6Ik1yRFpvTFQyb3JlUjZ3ZVFveEdSWjdRVDRtZjIiLCJpYXQiOjE3NTg3MjM5NDAsImV4cCI6MTc1ODcyNzU0MCwiZW1haWwiOiJ0ZW9kb3IubmVndXJhMjFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbInRlb2Rvci5uZWd1cmEyMUBnbWFpbC5jb20iXX0sInNpZ25faW5fcHJvdmlkZXIiOiJwYXNzd29yZCJ9fQ.ar-payG49HBvp6IAWFc0A6tdziR9zp63hnyZ1FS1QnXnZwUAEibfOQ4p_t3BZAXRkL1FvJEFCQ4sdHnJalL35-SECcntJ12cBN62Dm0J5ptTEV6vqOOV7eQfNREQLGJIin_3JASNP-iZ4e8HRueC-S-9UNwojq5wYtYE_YlmeIzkg0vYl61tFaW2eF7YxXW1Q4HEddVJEUZB-S0WJ4KjoaM-PL_X2_slLQhKRzs6Ex3CNWMfcO0AoenqptowCulLhEJX762gMFtLb4EXkjMFCTDu2ZJhcMLsNAnFmZWhxtzvTDzEvT1RZ6a5XNQkmVOamPvuJq79q2mki7_TCb91Uw}
+?O API Error: null The connection errored: The remote computer refused the network connection.
+
+ This indicates an error which most likely cannot be solved by the library.
+Failed to sync user with backend: Exception: Network error. Please check your connection and try again.
