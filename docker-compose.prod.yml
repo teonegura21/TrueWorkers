@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: mesteri-postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-mesteri_db}
+      POSTGRES_USER: ${DB_USERNAME:-mesteri_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mesteri_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - mesteri-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-mesteri_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS Backend
+  backend:
+    build:
+      context: ./mesteri-platform/backend
+      dockerfile: Dockerfile
+    container_name: mesteri-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USERNAME:-mesteri_user}:${DB_PASSWORD:-mesteri_pass}@postgres:5432/${DB_DATABASE:-mesteri_db}?schema=public
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
+      WS_CORS_ORIGIN: ${FRONTEND_URL:-http://localhost}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mesteri-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Flutter Web App
+  app-client:
+    build:
+      context: ./mesteri-platform/app_client
+      dockerfile: Dockerfile
+      args:
+        - API_BASE_URL=${API_BASE_URL:-http://localhost:3000}
+    container_name: mesteri-app-client
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - mesteri-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Redis (for caching and session management)
+  redis:
+    image: redis:7-alpine
+    container_name: mesteri-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mesteri-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  mesteri-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
