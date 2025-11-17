@@ -16,6 +16,7 @@ class _InspirationFeedScreenState extends State<InspirationFeedScreen> {
   final InspirationService _service = InspirationService();
   List<InspirationPost> _posts = [];
   bool _isLoading = true;
+  String? _error;
   // Store the playing state for each video
   final Map<int, bool> _playingStates = {};
 
@@ -28,16 +29,35 @@ class _InspirationFeedScreenState extends State<InspirationFeedScreen> {
   }
 
   Future<void> _loadFeed() async {
-    setState(() => _isLoading = true);
-    final posts = await _service.getFeed();
+    if (!mounted) return;
+
     setState(() {
-      _posts = posts;
-      _isLoading = false;
-      // Initialize all videos as not playing initially
-      for (int i = 0; i < _posts.length; i++) {
-        _playingStates[i] = false;
-      }
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      final posts = await _service.getFeed();
+
+      if (!mounted) return;
+
+      setState(() {
+        _posts = posts;
+        _isLoading = false;
+        _error = null;
+        // Initialize all videos as not playing initially
+        for (int i = 0; i < _posts.length; i++) {
+          _playingStates[i] = false;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   void _onPageChanged() {
@@ -79,6 +99,46 @@ class _InspirationFeedScreenState extends State<InspirationFeedScreen> {
       );
     }
 
+    // Show error state
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'Eroare la încărcare',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadFeed,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Încearcă din nou'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Show empty state
     if (_posts.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -92,11 +152,16 @@ class _InspirationFeedScreenState extends State<InspirationFeedScreen> {
                 'Nu există postări încă',
                 style: TextStyle(color: Colors.white, fontSize: 18),
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'Verifică mai târziu pentru inspirație nouă',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadFeed,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Reîncearcă'),
+                label: const Text('Reîncarcă'),
               ),
             ],
           ),
