@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JobCategory } from '@prisma/client';
 
 export type AnalyticsEventType =
   | 'PAGE_VIEW'
@@ -20,15 +21,43 @@ export type AnalyticsEventType =
   | 'APP_CLOSE'
   | 'FEATURE_USED';
 
+/**
+ * Device information for analytics tracking
+ */
+export interface DeviceInfo {
+  deviceType?: 'mobile' | 'tablet' | 'desktop' | 'unknown';
+  osName?: string;
+  osVersion?: string;
+  browserName?: string;
+  browserVersion?: string;
+  screenWidth?: number;
+  screenHeight?: number;
+  language?: string;
+  timezone?: string;
+}
+
+/**
+ * Search filters for analytics
+ */
+export interface SearchFilters {
+  category?: JobCategory;
+  minBudget?: number;
+  maxBudget?: number;
+  urgency?: string;
+  sortBy?: string;
+  radius?: number;
+  [key: string]: unknown; // Allow additional custom filters
+}
+
 export interface TrackEventDto {
   userId?: string;
   sessionId?: string;
   eventType: AnalyticsEventType;
   eventName: string;
-  properties?: any;
+  properties?: Record<string, unknown>;
   platform?: string;
   appVersion?: string;
-  deviceInfo?: any;
+  deviceInfo?: DeviceInfo;
   ipAddress?: string;
   userAgent?: string;
   referrer?: string;
@@ -41,7 +70,7 @@ export interface TrackEventDto {
 export interface SearchHistoryDto {
   userId: string;
   query: string;
-  filters?: any;
+  filters?: SearchFilters;
   category?: string;
   location?: string;
   latitude?: number;
