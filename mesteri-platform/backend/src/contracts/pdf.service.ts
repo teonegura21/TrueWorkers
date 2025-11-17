@@ -3,6 +3,16 @@ import * as puppeteer from 'puppeteer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { ProjectDataForContract } from './contracts.service';
+import { Contract } from '@prisma/client';
+
+/**
+ * Contract data structure for PDF generation
+ */
+export interface ContractDataForPdf {
+  project: ProjectDataForContract;
+  contract: Partial<Contract>;
+}
 
 @Injectable()
 export class PdfService {
@@ -30,7 +40,7 @@ export class PdfService {
    * @param contractData - The contract and project data
    * @returns Buffer containing the PDF data
    */
-  async generateContractPdf(contractData: any): Promise<Buffer> {
+  async generateContractPdf(contractData: ContractDataForPdf): Promise<Buffer> {
     if (!this.contractTemplate) {
       throw new InternalServerErrorException('PDF template not loaded. Cannot generate contract PDF.');
     }

@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SignRequestService } from '../signrequest/signrequest.service';
 import { EmailNotificationService } from '../notifications/email-notification.service';
-import { Contract, ContractStatus } from '@prisma/client';
+import { Contract, ContractStatus, Project, User, Job, Milestone } from '@prisma/client';
 import { Storage } from '@google-cloud/storage';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs/promises';
@@ -16,6 +16,16 @@ import * as path from 'path';
 import { SignRequestWebhookDto } from './dto/sign-request-webhook.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { PdfService } from './pdf.service';
+
+/**
+ * Project data with all necessary relations for contract generation
+ */
+export interface ProjectDataForContract extends Project {
+  client: User | null;
+  craftsman: User | null;
+  job: Job | null;
+  milestoneRecords: Milestone[];
+}
 
 @Injectable()
 export class ContractsService {
@@ -365,7 +375,7 @@ export class ContractsService {
     return project;
   }
 
-  private generateContractHtml(projectData: any): string {
+  private generateContractHtml(projectData: ProjectDataForContract): string {
     const templateData = {
       project: {
         ...projectData,
