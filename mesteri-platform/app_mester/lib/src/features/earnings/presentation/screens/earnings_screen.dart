@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/wallet_service.dart';
 
 enum EarningsView {
   overview,
@@ -66,56 +68,6 @@ class Transaction {
   }
 }
 
-// Mock data for earnings
-final List<Transaction> mockTransactions = [
-  Transaction(
-    id: '1',
-    description: 'Plată proiect "Reparație robinet bucătărie"',
-    type: TransactionType.paymentReceived,
-    amount: 180.0,
-    date: DateTime.now().subtract(const Duration(hours: 2)),
-    projectTitle: 'Reparație robinet bucătărie',
-    clientName: 'Maria Popescu',
-    durationDays: 2,
-  ),
-  Transaction(
-    id: '2',
-    description: 'Plată proiect "Montaj ușă de intrare"',
-    type: TransactionType.paymentReceived,
-    amount: 320.0,
-    date: DateTime.now().subtract(const Duration(days: 1)),
-    projectTitle: 'Montaj ușă de intrare',
-    clientName: 'Ion Dumitrescu',
-    durationDays: 1,
-  ),
-  Transaction(
-    id: '3',
-    description: 'Comision platformă (2%)',
-    type: TransactionType.fee,
-    amount: -7.2,
-    date: DateTime.now().subtract(const Duration(days: 1)),
-    projectTitle: 'Montaj ușă de intrare',
-    clientName: 'Ion Dumitrescu',
-  ),
-  Transaction(
-    id: '4',
-    description: 'Transfer către IBAN',
-    type: TransactionType.payout,
-    amount: -1850.00,
-    date: DateTime.now().subtract(const Duration(days: 3)),
-    projectTitle: 'Variuzui plăți acumulate',
-  ),
-  Transaction(
-    id: '5',
-    description: 'Refund project cancellation',
-    type: TransactionType.refund,
-    amount: 50.0,
-    date: DateTime.now().subtract(const Duration(days: 5)),
-    projectTitle: 'Outdated project',
-    clientName: 'Alex Georgescu',
-    durationDays: 1,
-  ),
-];
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -128,17 +80,58 @@ class _EarningsScreenState extends State<EarningsScreen>
     with SingleTickerProviderStateMixin {
   EarningsView _selectedView = EarningsView.overview;
   late TabController _tabController;
+  final WalletService _walletService = WalletService();
+
+  bool _isLoading = false;
+  String? _error;
+  Map<String, dynamic>? _wallet;
+  List<dynamic> _transactions = [];
 
   // Balance and stats
-  final double currentBalance = 2560.80;
-  final double heldAmount = 320.00; // Funds waiting for project completion
-  final double totalEarned = 15320.00;
+  double get currentBalance => (_wallet?['balance'] ?? 0.0).toDouble();
+  double get heldAmount => (_wallet?['heldAmount'] ?? 0.0).toDouble();
+  double get totalEarned => (_wallet?['totalEarned'] ?? 0.0).toDouble();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabSelection);
+    _loadWalletData();
+  }
+
+  Future<void> _loadWalletData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('Utilizator neautentificat');
+      }
+
+      final wallet = await _walletService.getWallet(currentUser.uid);
+      final transactions = await _walletService.getTransactionHistory(currentUser.uid);
+
+      if (mounted) {
+        setState(() {
+          _wallet = wallet;
+          _transactions = transactions;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().contains('Exception: ')
+              ? e.toString().substring(e.toString().indexOf('Exception: ') + 11)
+              : e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -334,13 +327,13 @@ class _EarningsScreenState extends State<EarningsScreen>
   }
 
   Widget _buildQuickStatsGrid() {
-    final thisMonthEarnings = mockTransactions
+    final thisMonthEarnings = _transactions
         .where((t) => t.date.month == DateTime.now().month &&
                      t.amount > 0 &&
                      t.type == TransactionType.paymentReceived)
         .fold(0.0, (sum, t) => sum + t.amount);
 
-    final totalPayments = mockTransactions
+    final totalPayments = _transactions
         .where((t) => t.type == TransactionType.paymentReceived)
         .length;
 
@@ -392,7 +385,7 @@ class _EarningsScreenState extends State<EarningsScreen>
 
         const SizedBox(height: 16),
 
-        ...mockTransactions.take(3).map(_buildRecentTransaction),
+        ..._transactions.take(3).map(_buildRecentTransaction),
 
         const SizedBox(height: 16),
 
@@ -459,12 +452,12 @@ class _EarningsScreenState extends State<EarningsScreen>
 
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _refreshTransactions,
+            onRefresh: _loadWalletData,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: mockTransactions.length,
+              itemCount: _transactions.length,
               itemBuilder: (context, index) {
-                final transaction = mockTransactions[index];
+                final transaction = _transactions[index];
                 return _buildTransactionItem(transaction);
               },
             ),
@@ -1216,7 +1209,7 @@ class _EarningsScreenState extends State<EarningsScreen>
     // TODO: Show quick transfer options
   }
 
-  Future<void> _refreshTransactions() async {
+  Future<void> _loadWalletData() async {
     // TODO: Refresh transactions
     await Future.delayed(const Duration(seconds: 2));
     setState(() {});

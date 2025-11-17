@@ -66,4 +66,22 @@ class WalletService {
       throw Exception('Failed to get wallet stats: $e');
     }
   }
+
+  /// Get transaction history
+  Future<List<dynamic>> getTransactionHistory(String userId) async {
+    try {
+      final response = await _dio.get('/wallets/$userId/transactions');
+      if (response.data is List) {
+        return response.data as List;
+      } else if (response.data is Map && response.data.containsKey('transactions')) {
+        return response.data['transactions'] as List;
+      } else if (response.data is Map && response.data.containsKey('data')) {
+        return response.data['data'] as List;
+      }
+      return [];
+    } catch (e) {
+      // Return earnings as fallback for transactions
+      return getEarnings(userId);
+    }
+  }
 }

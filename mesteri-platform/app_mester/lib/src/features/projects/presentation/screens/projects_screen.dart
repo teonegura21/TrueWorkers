@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/services/projects_service.dart';
 
 enum ProjectsView {
   all,
@@ -93,84 +95,6 @@ class ProjectMilestone {
   }
 }
 
-// Mock data for development
-final List<ActiveProject> mockProjects = [
-  ActiveProject(
-    id: '1',
-    clientName: 'Maria Popescu',
-    projectTitle: 'Reparație robinet și instalații',
-    description: 'Se repară robineții defecte, se schimbă câteva conducte. Inclusiv testarea sistemului.',
-    status: ProjectStatus.inProgress,
-    startDate: DateTime.now().subtract(const Duration(days: 5)),
-    deadline: DateTime.now().add(const Duration(days: 2)),
-    totalValue: 450.0,
-    paidAmount: 150.0,
-    completedTasks: 2,
-    totalTasks: 6,
-    hasIssues: true,
-    lastMessage: 'Materialele ajung mâine dimineața',
-    milestones: [
-      ProjectMilestone(
-        id: '1',
-        title: 'Demontare robinete vechi',
-        description: 'Se demontează sistemele existente',
-        value: 50.0,
-        dueDate: DateTime.now().subtract(const Duration(days: 3)),
-        isCompleted: true,
-        completedDate: DateTime.now().subtract(const Duration(days: 3)),
-      ),
-      ProjectMilestone(
-        id: '2',
-        title: 'Montare robinete noi',
-        description: 'Instalare și verificare',
-        value: 100.0,
-        dueDate: DateTime.now().add(const Duration(days: 1)),
-        isCompleted: false,
-      ),
-    ],
-  ),
-
-  ActiveProject(
-    id: '2',
-    clientName: 'Ion Dumitrescu',
-    projectTitle: 'Montaj ușă metalică 80x210cm',
-    description: 'Ușă de intrare complet echipată cu panou securizat și accesorii',
-    status: ProjectStatus.preparation,
-    startDate: DateTime.now().subtract(const Duration(days: 1)),
-    deadline: DateTime.now().add(const Duration(days: 10)),
-    totalValue: 320.0,
-    paidAmount: 100.0,
-    completedTasks: 1,
-    totalTasks: 4,
-    lastMessage: 'Clientul dorște ușă mai întunecată',
-    milestones: [
-      ProjectMilestone(
-        id: '3',
-        title: 'Pregătire loc de montaj',
-        description: 'Demolarea ramei vechi',
-        value: 80.0,
-        dueDate: DateTime.now().add(const Duration(days: 2)),
-        isCompleted: false,
-      ),
-    ],
-  ),
-
-  ActiveProject(
-    id: '3',
-    clientName: 'Sofia Andrei',
-    projectTitle: 'Montaj blat bucătărie',
-    description: 'Montaj complet cu electrocasnice integrate și sistem de ventilație',
-    status: ProjectStatus.completed,
-    startDate: DateTime.now().subtract(const Duration(days: 14)),
-    completionDate: DateTime.now().subtract(const Duration(days: 2)),
-    deadline: DateTime.now().subtract(const Duration(days: 5)),
-    totalValue: 1800.0,
-    paidAmount: 1800.0,
-    completedTasks: 8,
-    totalTasks: 8,
-    milestones: [],
-  ),
-];
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -183,12 +107,18 @@ class _ProjectsScreenState extends State<ProjectsScreen>
     with SingleTickerProviderStateMixin {
   ProjectsView _selectedView = ProjectsView.all;
   late TabController _tabController;
+  final ProjectsService _projectsService = ProjectsService();
+
+  bool _isLoading = false;
+  String? _error;
+  List<ActiveProject> _projects = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabSelection);
+    _loadProjects();
   }
 
   @override
@@ -216,10 +146,134 @@ class _ProjectsScreenState extends State<ProjectsScreen>
     });
   }
 
+  Future<void> _loadProjects() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('Utilizator neautentificat');
+      }
+
+      final response = await _projectsService.getCraftsmanProjects(currentUser.uid);
+
+      if (mounted) {
+        setState(() {
+          _projects = response.map((json) => _parseProject(json)).where((p) => p != null).cast<ActiveProject>().toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().contains('Exception: ')
+              ? e.toString().substring(e.toString().indexOf('Exception: ') + 11)
+              : e.toString();
+          _isLoading = false;
+          _projects = [];
+        });
+      }
+    }
+  }
+
+  ActiveProject? _parseProject(Map<String, dynamic> json) {
+    try {
+      return ActiveProject(
+        id: json['id'] ?? '',
+        clientName: json['clientName'] ?? json['client']?['fullName'] ?? 'Client necunoscut',
+        projectTitle: json['title'] ?? 'Proiect',
+        description: json['description'] ?? '',
+        status: _parseStatus(json['status']),
+        startDate: DateTime.tryParse(json['startDate']?.toString() ?? '') ?? DateTime.now(),
+        completionDate: json['completionDate'] != null ? DateTime.tryParse(json['completionDate'].toString()) : null,
+        deadline: json['deadline'] != null ? DateTime.tryParse(json['deadline'].toString()) : null,
+        totalValue: ((json['totalBudget'] ?? json['agreedPrice'] ?? 0.0) as num).toDouble(),
+        paidAmount: ((json['paidAmount'] ?? 0.0) as num).toDouble(),
+        completedTasks: json['completedTasks'] ?? 0,
+        totalTasks: json['totalTasks'] ?? 1,
+        hasIssues: json['hasIssues'] ?? false,
+        lastMessage: json['lastMessage'],
+        milestones: (json['milestones'] as List?)?.map((m) => _parseMilestone(m)).where((m) => m != null).cast<ProjectMilestone>().toList() ?? [],
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  ProjectMilestone? _parseMilestone(Map<String, dynamic> json) {
+    try {
+      return ProjectMilestone(
+        id: json['id'] ?? '',
+        title: json['title'] ?? 'Milestone',
+        description: json['description'] ?? '',
+        value: ((json['value'] ?? json['amount'] ?? 0.0) as num).toDouble(),
+        dueDate: DateTime.tryParse(json['dueDate']?.toString() ?? '') ?? DateTime.now(),
+        isCompleted: json['isCompleted'] ?? json['status'] == 'COMPLETED' ?? false,
+        completedDate: json['completedDate'] != null ? DateTime.tryParse(json['completedDate'].toString()) : null,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  ProjectStatus _parseStatus(String? status) {
+    switch (status?.toUpperCase()) {
+      case 'IN_PROGRESS':
+      case 'ACTIVE':
+        return ProjectStatus.inProgress;
+      case 'COMPLETED':
+        return ProjectStatus.completed;
+      case 'PENDING':
+      case 'PREPARATION':
+        return ProjectStatus.preparation;
+      case 'WAITING_APPROVAL':
+        return ProjectStatus.waitingApproval;
+      case 'ON_HOLD':
+        return ProjectStatus.onHold;
+      case 'CANCELLED':
+        return ProjectStatus.cancelled;
+      default:
+        return ProjectStatus.preparation;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Show loading state
+    if (_isLoading && _projects.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Proiectele Mele')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Show error state
+    if (_error != null && _projects.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Proiectele Mele')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadProjects,
+                child: const Text('Încearcă din nou'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final summary = getProjectsSummary();
-    final filteredProjects = getFilteredProjects(mockProjects);
+    final filteredProjects = getFilteredProjects(_projects);
 
     return Scaffold(
       appBar: AppBar(
@@ -257,9 +311,9 @@ class _ProjectsScreenState extends State<ProjectsScreen>
 
   Widget _buildStatsSummary() {
     final summary = getProjectsSummary();
-    final averageCompletion = mockProjects.isNotEmpty
-        ? mockProjects.map((p) => p.progress).reduce((a, b) => a + b) /
-          mockProjects.length
+    final averageCompletion = _projects.isNotEmpty
+        ? _projects.map((p) => p.progress).reduce((a, b) => a + b) /
+          _projects.length
         : 0.0;
 
     return Container(
@@ -293,7 +347,7 @@ class _ProjectsScreenState extends State<ProjectsScreen>
           Expanded(
             child: _buildStatItem(
               'Total\nVenit',
-              '${mockProjects.where((p) => p.status == ProjectStatus.completed).fold(0.0, (sum, p) => sum + p.totalValue).toStringAsFixed(0)}${AppConfig.currencySymbol}',
+              '${_projects.where((p) => p.status == ProjectStatus.completed).fold(0.0, (sum, p) => sum + p.totalValue).toStringAsFixed(0)}${AppConfig.currencySymbol}',
               AppTheme.successColor,
             ),
           ),
@@ -328,7 +382,7 @@ class _ProjectsScreenState extends State<ProjectsScreen>
 
   Widget _buildProjectsList(List<ActiveProject> projects) {
     return RefreshIndicator(
-      onRefresh: _refreshProjects,
+      onRefresh: _loadProjects,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: projects.length,
@@ -681,7 +735,7 @@ class _ProjectsScreenState extends State<ProjectsScreen>
   // Helper methods
   ProjectsSummary getProjectsSummary() {
     int active = 0, completed = 0, upcoming = 0;
-    for (final project in mockProjects) {
+    for (final project in _projects) {
       switch (project.status) {
         case ProjectStatus.inProgress:
         case ProjectStatus.waitingApproval:
@@ -701,7 +755,7 @@ class _ProjectsScreenState extends State<ProjectsScreen>
       active: active,
       completed: completed,
       upcoming: upcoming,
-      total: mockProjects.length,
+      total: _projects.length,
     );
   }
 
@@ -753,11 +807,6 @@ class _ProjectsScreenState extends State<ProjectsScreen>
     // TODO: Show dialog to add new milestone
   }
 
-  Future<void> _refreshProjects() async {
-    // TODO: Implement refresh logic
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {});
-  }
 }
 
 class ProjectsSummary {
