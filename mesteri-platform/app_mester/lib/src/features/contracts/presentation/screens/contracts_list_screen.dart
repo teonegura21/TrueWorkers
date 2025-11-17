@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'contract_viewer_screen.dart';
+import '../../services/contracts_api_service.dart';
 
 class ContractsListScreen extends StatefulWidget {
   const ContractsListScreen({super.key});
@@ -13,11 +15,17 @@ class ContractsListScreen extends StatefulWidget {
 class _ContractsListScreenState extends State<ContractsListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ContractApiService _contractService = ContractApiService();
+
+  bool _isLoading = false;
+  String? _error;
+  List<ContractModel> _allContracts = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _loadContracts();
   }
 
   @override
@@ -60,12 +68,40 @@ class _ContractsListScreenState extends State<ContractsListScreen>
   }
 
   Widget _buildContractList({String? statusFilter}) {
-    // Using mock data for now - in real app this would come from API
-    List<ContractModel> contracts = _getMockContracts();
+    // Show loading indicator
+    if (_isLoading && _allContracts.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Show error state
+    if (_error != null && _allContracts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadContracts,
+              child: const Text('Încearcă din nou'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Filter contracts based on status
+    List<ContractModel> contracts = _allContracts;
 
     if (statusFilter != null) {
       if (statusFilter == 'COMPLETED_HISTORY') {
-        contracts = contracts.where((c) => 
+        contracts = contracts.where((c) =>
           c.status == 'SIGNED' || c.status == 'COMPLETED' || c.status == 'ARCHIVED'
         ).toList();
       } else {
@@ -114,10 +150,7 @@ class _ContractsListScreenState extends State<ContractsListScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () async {
-        // Simulate refresh
-        await Future.delayed(const Duration(seconds: 1));
-      },
+      onRefresh: _loadContracts,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: contracts.length,
@@ -129,42 +162,54 @@ class _ContractsListScreenState extends State<ContractsListScreen>
     );
   }
 
-  List<ContractModel> _getMockContracts() {
-    return [
-      ContractModel(
-        id: '1',
-        projectId: 'proj1',
-        title: 'Instalații sanitare bucătărie',
-        description: 'Reparație robinet și instalații sanitare',
-        clientName: 'Maria Popescu',
-        clientEmail: 'maria.popescu@example.com',
-        amount: 450.0,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        status: 'PENDING_SIGNATURE',
-      ),
-      ContractModel(
-        id: '2',
-        projectId: 'proj2',
-        title: 'Montaj ușă de intrare',
-        description: 'Montaj complet ușă metalică exterioară',
-        clientName: 'Ion Ionescu',
-        clientEmail: 'ion.ionescu@example.com',
-        amount: 320.0,
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-        status: 'SIGNED',
-      ),
-      ContractModel(
-        id: '3',
-        projectId: 'proj3',
-        title: 'Demolări interioare',
-        description: 'Demolare pereți despărțitori și podea',
-        clientName: 'Elena Georgescu',
-        clientEmail: 'elena.georgescu@example.com',
-        amount: 1200.0,
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        status: 'COMPLETED',
-      ),
-    ];
+  Future<void> _loadContracts() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('Utilizator neautentificat');
+      }
+
+      final response = await _contractService.getUserContracts();
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        List<ContractModel> contracts = [];
+
+        // Handle different response formats
+        if (data is List) {
+          contracts = data.map((json) => ContractModel.fromJson(json as Map<String, dynamic>)).toList();
+        } else if (data is Map) {
+          final contractsList = data['contracts'] ?? data['data'] ?? [];
+          if (contractsList is List) {
+            contracts = contractsList.map((json) => ContractModel.fromJson(json as Map<String, dynamic>)).toList();
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _allContracts = contracts;
+            _isLoading = false;
+          });
+        }
+      } else {
+        throw Exception('Failed to load contracts');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().contains('Exception: ')
+            ? e.toString().substring(e.toString().indexOf('Exception: ') + 11)
+            : e.toString();
+          _isLoading = false;
+          _allContracts = [];
+        });
+      }
+    }
   }
 
   String _getEmptyTextForStatus(String status) {
