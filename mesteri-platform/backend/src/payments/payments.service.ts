@@ -95,6 +95,94 @@ export interface PaymentInsights {
   } | null;
 }
 
+export interface KycData {
+  documents?: string[];
+  idNumber?: string;
+  nationality?: string;
+  dateOfBirth?: string;
+  address?: string;
+  [key: string]: unknown;
+}
+
+export interface BankAccountData {
+  id?: string;
+  accountNumber: string;
+  bankName: string;
+  accountHolderName: string;
+  iban?: string;
+  swiftCode?: string;
+  currency?: string;
+  isPrimary?: boolean;
+}
+
+export interface SuspiciousActivity {
+  type: string;
+  count: number;
+  description: string;
+}
+
+export interface SecurityRecommendation {
+  type: string;
+  message: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
+export interface Web3Opportunity {
+  type: string;
+  description: string;
+  estimatedReturn: number;
+  riskLevel: 'low' | 'medium' | 'high';
+}
+
+export interface StakingOpportunity {
+  platform: string;
+  apr: number;
+  minimumStake: number;
+  lockPeriod: string;
+  riskLevel: 'low' | 'medium' | 'high';
+}
+
+export interface TradingOpportunity {
+  pair: string;
+  signal: 'buy' | 'sell' | 'hold';
+  confidence: number;
+  potentialProfit: number;
+}
+
+export interface RiskRecommendation {
+  type: string;
+  message: string;
+  action: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
+export interface TaxOptimizationOpportunity {
+  type: string;
+  description: string;
+  potentialSavings: number;
+  deadline?: string;
+}
+
+export interface MonthlyPaymentData {
+  month: string;
+  totalAmount: number;
+  transactionCount: number;
+  averageAmount: number;
+}
+
+export interface GrowthOpportunity {
+  type: string;
+  message: string;
+  priority: 'low' | 'medium' | 'high';
+  potentialIncrease?: number;
+}
+
+export interface MonthlyGrowthData {
+  month: string;
+  total: number;
+  count: number;
+}
+
 export interface PaymentPrediction {
   month: string;
   predictedEarnings: number;
@@ -379,7 +467,7 @@ export class PaymentsService {
     });
   }
 
-  async submitKyc(id: string, kycData: any): Promise<Wallet | null> {
+  async submitKyc(id: string, kycData: KycData): Promise<Wallet | null> {
     const wallet = await this.prisma.wallet.findUnique({ where: { id } });
     if (!wallet) {
       return null;
@@ -390,12 +478,12 @@ export class PaymentsService {
     });
   }
 
-  async addBankAccount(id: string, bankAccountData: any): Promise<Wallet | null> {
+  async addBankAccount(id: string, bankAccountData: BankAccountData): Promise<Wallet | null> {
     const wallet = await this.prisma.wallet.findUnique({ where: { id } });
     if (!wallet) {
       return null;
     }
-    const currentBankAccounts = (wallet.bankAccounts || []) as any[];
+    const currentBankAccounts = (wallet.bankAccounts || []) as BankAccountData[];
     return this.prisma.wallet.update({
       where: { id },
       data: { bankAccounts: [...currentBankAccounts, bankAccountData] },
@@ -407,8 +495,8 @@ export class PaymentsService {
     if (!wallet) {
       return null;
     }
-    const currentBankAccounts = (wallet.bankAccounts || []) as any[];
-    const updatedBankAccounts = currentBankAccounts.filter((acc: any) => acc.id !== accountid);
+    const currentBankAccounts = (wallet.bankAccounts || []) as BankAccountData[];
+    const updatedBankAccounts = currentBankAccounts.filter((acc) => acc.id !== accountid);
     return this.prisma.wallet.update({
       where: { id },
       data: { bankAccounts: updatedBankAccounts },
@@ -1507,8 +1595,8 @@ export class PaymentsService {
     };
   }
 
-  private identifySuspiciousActivities(payments: Payment[]): any[] {
-    const suspicious: any[] = [];
+  private identifySuspiciousActivities(payments: Payment[]): SuspiciousActivity[] {
+    const suspicious: SuspiciousActivity[] = [];
 
     // Large transactions
     const largeTransactions = payments.filter((p) => p.amount > 10000);
@@ -1533,8 +1621,8 @@ export class PaymentsService {
     return suspicious;
   }
 
-  private async getFraudSecurityRecommendations(userId: string): Promise<any[]> {
-    const recommendations: any[] = [];
+  private async getFraudSecurityRecommendations(userId: string): Promise<SecurityRecommendation[]> {
+    const recommendations: SecurityRecommendation[] = [];
     const payments = await this.prisma.payment.findMany({ where: { userId } });
 
     // Check for diverse payment methods
@@ -1718,8 +1806,8 @@ export class PaymentsService {
     };
   }
 
-  private identifyWeb3Opportunities(userId: string): any[] {
-    const opportunities: any[] = [];
+  private identifyWeb3Opportunities(userId: string): Web3Opportunity[] {
+    const opportunities: Web3Opportunity[] = [];
     opportunities.push({
       type: 'education',
       message: 'Learn about Web3 payment opportunities',
@@ -1765,8 +1853,8 @@ export class PaymentsService {
     };
   }
 
-  private identifyStakingOpportunities(): any[] {
-    const opportunities: any[] = [];
+  private identifyStakingOpportunities(): StakingOpportunity[] {
+    const opportunities: StakingOpportunity[] = [];
     opportunities.push({
       type: 'diversification',
       message: 'Consider diversifying staking assets',
@@ -1805,8 +1893,8 @@ export class PaymentsService {
     };
   }
 
-  private identifyTradingOpportunities(): any[] {
-    const opportunities: any[] = [];
+  private identifyTradingOpportunities(): TradingOpportunity[] {
+    const opportunities: TradingOpportunity[] = [];
     opportunities.push({
       type: 'market_analysis',
       message: 'Analyze market trends to identify trading opportunities',
@@ -1957,8 +2045,8 @@ export class PaymentsService {
     return Math.max(20, 100 - paymentDiversity * 5);
   }
 
-  private getRiskRecommendations(riskScore: number): any[] {
-    const recommendations: any[] = [];
+  private getRiskRecommendations(riskScore: number): RiskRecommendation[] {
+    const recommendations: RiskRecommendation[] = [];
 
     if (riskScore > 70) {
       recommendations.push({
@@ -2113,8 +2201,8 @@ export class PaymentsService {
 
   private identifyGrowthOpportunities(
     payments: Array<{ createdAt: Date; projectId: string; amount: number }>
-  ): any[] {
-    const opportunities: any[] = [];
+  ): GrowthOpportunity[] {
+    const opportunities: GrowthOpportunity[] = [];
     const monthlyGrowth = 0; // this.calculateMonthlyGrowth(payments);
 
     if (monthlyGrowth < 10) {
@@ -2132,7 +2220,7 @@ export class PaymentsService {
     payments: Array<{ createdAt: Date; amount: number }>
   ): number {
     // const monthlyData = this.groupPaymentsByMonth(payments);
-    const monthlyData: any[] = [];
+    const monthlyData: MonthlyGrowthData[] = [];
     if (monthlyData.length < 2) return 0;
 
     const recentMonths = monthlyData.slice(-2);

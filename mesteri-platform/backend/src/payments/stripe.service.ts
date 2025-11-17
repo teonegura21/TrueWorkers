@@ -154,7 +154,7 @@ export class StripeService {
   /**
    * Create a customer for recurring payments
    */
-  async createCustomer(email: string, name: string, metadata?: any) {
+  async createCustomer(email: string, name: string, metadata?: Record<string, string>) {
     return this.stripe.customers.create({
       email,
       name,

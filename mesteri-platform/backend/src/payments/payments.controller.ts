@@ -13,7 +13,10 @@ import {
 } from '@nestjs/common';
 import {
   PaymentsService,
+  KycData,
+  BankAccountData,
 } from './payments.service';
+import { FirebaseAuthenticatedRequest } from '../notifications/interfaces/auth-request.interface';
 import { StripeService } from './stripe.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -169,12 +172,12 @@ export class PaymentsController {
   }
 
   @Post('wallets/:id/kyc')
-  submitKyc(@Param('id') id: string, @Body() kycData: any) {
+  submitKyc(@Param('id') id: string, @Body() kycData: KycData) {
     return this.paymentsService.submitKyc(id, kycData);
   }
 
   @Post('wallets/:id/bank-account')
-  addBankAccount(@Param('id') id: string, @Body() bankAccountData: any) {
+  addBankAccount(@Param('id') id: string, @Body() bankAccountData: BankAccountData) {
     return this.paymentsService.addBankAccount(id, bankAccountData);
   }
 
@@ -549,7 +552,7 @@ export class PaymentsController {
   @Post('stripe/webhook')
   async handleStripeWebhook(
     @Headers('stripe-signature') signature: string,
-    @Req() request: any,
+    @Req() request: RawBodyRequest<FirebaseAuthenticatedRequest>,
   ) {
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
     
