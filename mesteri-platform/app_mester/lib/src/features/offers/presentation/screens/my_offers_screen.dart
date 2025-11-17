@@ -71,69 +71,6 @@ class MyOffer {
   }
 }
 
-// Mock data for development
-final List<MyOffer> mockOffers = [
-  MyOffer(
-    id: '1',
-    jobId: 'job1',
-    jobTitle: 'Reparație robinet bucătărie',
-    clientName: 'Maria Popescu',
-    proposedPrice: 180.0,
-    description: 'Voi efectua reparația în 2 ore. Am toate piesele necesare.',
-    status: 'pending',
-    submittedDate: DateTime.now().subtract(const Duration(hours: 2)),
-  ),
-
-  MyOffer(
-    id: '2',
-    jobId: 'job2',
-    jobTitle: 'Montaj ușă de intrare',
-    clientName: 'Ion Dumitrescu',
-    proposedPrice: 320.0,
-    description: 'Montaj profesional cu toate finisările incluse.',
-    status: 'accepted',
-    submittedDate: DateTime.now().subtract(const Duration(hours: 24)),
-    responseMessage: 'Excelent preț. Te contactăm pentru programare.',
-    responseDate: DateTime.now().subtract(const Duration(hours: 12)),
-  ),
-
-  MyOffer(
-    id: '3',
-    jobId: 'job3',
-    jobTitle: 'Vopsire apartament 3 camere',
-    clientName: 'Elena Alexandru',
-    proposedPrice: 1900.0,
-    description: 'Preț competitiv, materiale profesionale incluse.',
-    status: 'rejected',
-    submittedDate: DateTime.now().subtract(const Duration(hours: 48)),
-    responseMessage: 'Am ales alt meșter cu mai multă experiență.',
-    responseDate: DateTime.now().subtract(const Duration(hours: 24)),
-  ),
-
-  MyOffer(
-    id: '4',
-    jobId: 'job4',
-    jobTitle: 'Înlocuire priză defectă',
-    clientName: 'Mihai Vasilescu',
-    proposedPrice: 95.0,
-    description: 'Repar professional cu toate normativele respectate.',
-    status: 'pending',
-    submittedDate: DateTime.now().subtract(const Duration(hours: 6)),
-  ),
-
-  MyOffer(
-    id: '5',
-    jobId: 'job5',
-    jobTitle: 'Gresie și faianță baie',
-    clientName: 'Alexandru Georgescu',
-    proposedPrice: 950.0,
-    description: 'Montaj expert, completare în 3 zile.',
-    status: 'accepted',
-    submittedDate: DateTime.now().subtract(const Duration(hours: 36)),
-    responseMessage: 'Sună pentru programare când poți începe.',
-    responseDate: DateTime.now().subtract(const Duration(hours: 30)),
-  ),
-];
 
 class MyOffersScreen extends StatefulWidget {
   const MyOffersScreen({super.key});
