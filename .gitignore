@@ -6,35 +6,36 @@
 # ====================
 # ENVIRONMENT & SECRETS
 # ====================
-.env
-.env.*
+# REMOVED FOR TESTING - All environment files now visible
+# .env
+# .env.*
 !.env.example
 !.env.template
 
-# Environment files
-**/.env
-**/.env.local
-**/.env.production
-**/.env.staging
-**/.env.development
+# Environment files - COMMENTED OUT FOR TESTING
+# **/.env
+# **/.env.local
+# **/.env.production
+# **/.env.staging
+# **/.env.development
 
-# Secrets and sensitive configuration
-secrets/
-*.pem
-*.key
-*.p12
-*.keystore
-*.jks
-service-account-*.json
-firebase-adminsdk-*.json
-google-services.json
-GoogleService-Info.plist
+# Secrets and sensitive configuration - COMMENTED OUT FOR TESTING
+# secrets/
+# *.pem
+# *.key
+# *.p12
+# *.keystore
+# *.jks
+# service-account-*.json
+# firebase-adminsdk-*.json
+# google-services.json
+# GoogleService-Info.plist
 
-# API Keys and credentials
-api-keys.json
-credentials.json
-.credentials/
-.secrets/
+# API Keys and credentials - COMMENTED OUT FOR TESTING
+# api-keys.json
+# credentials.json
+# .credentials/
+# .secrets/
 
 # ====================
 # FLUTTER SPECIFIC
@@ -74,17 +75,17 @@ credentials.json
 **/.pub/
 **/build/
 
-# Android related
+# Android related - MODIFIED FOR TESTING
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
 **/android/captures/
 **/android/gradlew
 **/android/gradlew.bat
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
-**/android/key.properties
-**/android/**/*.keystore
-**/android/**/*.jks
+# **/android/local.properties - COMMENTED OUT FOR TESTING
+# **/android/**/GeneratedPluginRegistrant.java - NOW VISIBLE
+# **/android/key.properties - NOW VISIBLE
+# **/android/**/*.keystore - NOW VISIBLE
+# **/android/**/*.jks - NOW VISIBLE
 
 # iOS related
 **/ios/**/*.mode1v3
@@ -114,7 +115,7 @@ credentials.json
 **/ios/Flutter/flutter_assets/
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/ServiceDefinitions.json
-**/ios/Runner/GeneratedPluginRegistrant.*
+# **/ios/Runner/GeneratedPluginRegistrant.* - NOW VISIBLE FOR TESTING
 
 # ====================
 # NESTJS / NODE.JS BACKEND
@@ -290,16 +291,16 @@ lcov.info
 **/web/build/
 **/windows/build/
 
-# Distribution / packaging
+# Distribution / packaging (Python/Node - NOT Flutter lib/)
 .Python
-build/
+# build/ - commented out to allow Flutter code
 develop-eggs/
 dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# lib/ - REMOVED to expose Flutter application code
+# lib64/ - REMOVED to expose code
 parts/
 sdist/
 var/

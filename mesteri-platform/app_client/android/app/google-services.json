@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "962498343905",
+    "project_id": "mesteri-platform-2025-v1-0",
+    "storage_bucket": "mesteri-platform-2025-v1-0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:962498343905:android:feacf5d872ebeaa76198a0",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.client"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "962498343905-07cudbvb24uq44a26k46ejphfs5vq2ar.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOMxTTd0Ms9jq-rbKD23BwMlglLgG3WnM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "962498343905-07cudbvb24uq44a26k46ejphfs5vq2ar.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "962498343905-8l56s846l80nc80dsgness0p7vbmaqlk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mesteri.platform"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:962498343905:android:5d3d7b697de3df396198a0",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.mester"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "962498343905-07cudbvb24uq44a26k46ejphfs5vq2ar.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOMxTTd0Ms9jq-rbKD23BwMlglLgG3WnM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "962498343905-07cudbvb24uq44a26k46ejphfs5vq2ar.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "962498343905-8l56s846l80nc80dsgness0p7vbmaqlk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mesteri.platform"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
