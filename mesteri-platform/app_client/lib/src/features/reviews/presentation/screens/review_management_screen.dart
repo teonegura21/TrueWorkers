@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/network/api_client.dart';
 
 // Review and rating system
 class Review {
@@ -75,55 +77,6 @@ class ReviewStats {
   });
 }
 
-// Mock review data
-final List<Review> mockReviews = [
-  Review(
-    id: 'review_001',
-    projectId: 'proj_001',
-    projectTitle: 'Reparație robinet bucătărie',
-    craftsmanId: 'craftsman_001',
-    craftsmanName: 'Ion Dumitrescu',
-    overallRating: 4.8,
-    dimensionRatings: {
-      'quality': 5.0,
-      'timeliness': 4.5,
-      'professionalism': 5.0,
-      'communication': 4.5,
-    },
-    feedbackText:
-        'Serviciu excelent! Ion a ajuns la timp, a rezolvat problema profesional și a curățat perfect zona de lucru. Comunicarea a fost foarte bună prin mesaje. Recomand cu căldură!',
-    isPublic: true,
-    recommends: true,
-    createdAt: DateTime.now().subtract(const Duration(days: 3)),
-    status: ReviewStatus.responded,
-    tags: ['calitate excelentă', 'punctualitate', 'comunicare bună'],
-    responseFromCraftsman:
-        'Mulțumesc pentru recenzia frumoasă! A fost o plăcere să lucrez pentru dumneavoastră. Ion',
-  ),
-
-  Review(
-    id: 'review_002',
-    projectId: 'proj_002',
-    projectTitle: 'Instalare aer condiționat',
-    craftsmanId: 'craftsman_002',
-    craftsmanName: 'Vasile Gheorghiță',
-    overallRating: 3.2,
-    dimensionRatings: {
-      'quality': 2.5,
-      'timeliness': 3.0,
-      'professionalism': 4.0,
-      'communication': 2.5,
-    },
-    feedbackText:
-        'Serviciul a fost finalizat mai târziu decât convenit. Materialele folosite par să fie de calitate acceptabilă, dar site-ul de construcții avea dezordini.',
-    isPublic: true,
-    recommends: false,
-    createdAt: DateTime.now().subtract(const Duration(days: 7)),
-    status: ReviewStatus.published,
-    tags: ['întârziere', 'curățenie'],
-  ),
-];
-
 class ReviewManagementScreen extends StatefulWidget {
   const ReviewManagementScreen({super.key});
 
@@ -135,6 +88,12 @@ class _ReviewManagementScreenState extends State<ReviewManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _feedbackController = TextEditingController();
+  final ApiClient _apiClient = ApiClient.instance;
+
+  // Reviews state
+  List<dynamic> _myReviews = [];
+  bool _isLoadingReviews = false;
+  String? _error;
 
   // Review creation state
   double _overallRating = 0.0;
@@ -152,6 +111,44 @@ class _ReviewManagementScreenState extends State<ReviewManagementScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _loadMyReviews();
+  }
+
+  Future<void> _loadMyReviews() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _error = 'Utilizator neautentificat';
+        _isLoadingReviews = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingReviews = true;
+      _error = null;
+    });
+
+    try {
+      final response = await _apiClient.get('/reviews/reviewer/${user.uid}');
+      if (mounted) {
+        setState(() {
+          _myReviews = response.data is List ? response.data as List : [];
+          _isLoadingReviews = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+          _isLoadingReviews = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshMyReviews() async {
+    await _loadMyReviews();
   }
 
   @override
@@ -318,14 +315,36 @@ class _ReviewManagementScreenState extends State<ReviewManagementScreen>
   }
 
   Widget _buildMyReviewsTab() {
+    if (_isLoadingReviews) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(_error!, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadMyReviews,
+              child: const Text('Încearcă din nou'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _refreshMyReviews,
-      child: mockReviews.isNotEmpty
+      child: _myReviews.isNotEmpty
           ? ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: mockReviews.length,
+              itemCount: _myReviews.length,
               itemBuilder: (context, index) =>
-                  _buildReviewCard(mockReviews[index]),
+                  _buildReviewCardFromData(_myReviews[index]),
             )
           : _buildEmptyReviewsState(),
     );
@@ -362,18 +381,19 @@ class _ReviewManagementScreenState extends State<ReviewManagementScreen>
   }
 
   Widget _buildOtherReviewsTab() {
-    return RefreshIndicator(
-      onRefresh: _refreshOtherReviews,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: mockReviews.length + 5, // Simulate more reviews
-        itemBuilder: (context, index) {
-          if (index < mockReviews.length) {
-            return _buildReviewCard(mockReviews[index], showActions: false);
-          } else {
-            return _buildOtherReviewPlaceholder(index);
-          }
-        },
+    // For now, show empty state for other reviews
+    // This would typically show reviews from others or reviews about others
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'Nu există alte recenzii',
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+          ),
+        ],
       ),
     );
   }
@@ -791,6 +811,80 @@ class _ReviewManagementScreenState extends State<ReviewManagementScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildReviewCardFromData(Map<String, dynamic> reviewData, {bool showActions = true}) {
+    // Parse API data into display format
+    final projectTitle = reviewData['project']?['title'] ?? 'Proiect';
+    final craftsmanName = reviewData['craftsman']?['fullName'] ?? reviewData['reviewee']?['fullName'] ?? 'Meșter';
+    final overallRating = (reviewData['overallRating'] ?? reviewData['rating'] ?? 0.0).toDouble();
+    final feedbackText = reviewData['feedbackText'] ?? reviewData['comment'] ?? '';
+    final createdAt = reviewData['createdAt'] != null
+        ? DateTime.tryParse(reviewData['createdAt'].toString()) ?? DateTime.now()
+        : DateTime.now();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.outlineColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  projectTitle,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    overallRating.toStringAsFixed(1),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            craftsmanName,
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          Text(feedbackText),
+          const SizedBox(height: 8),
+          Text(
+            _formatReviewDate(createdAt),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatReviewDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Astăzi';
+    } else if (difference.inDays == 1) {
+      return 'Ieri';
+    } else if (difference.inDays < 30) {
+      return 'Acum ${difference.inDays} zile';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   Widget _buildReviewCard(Review review, {bool showActions = true}) {
@@ -1441,7 +1535,7 @@ class _ReviewManagementScreenState extends State<ReviewManagementScreen>
   }
 
   ReviewStats _calculateReviewStats() {
-    final reviews = mockReviews;
+    final reviews = _myReviews;
     final totalReviews = reviews.length;
 
     double totalRating = 0.0;
