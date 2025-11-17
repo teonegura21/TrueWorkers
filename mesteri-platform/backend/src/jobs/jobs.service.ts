@@ -1,9 +1,25 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Job, User, JobStatus, JobCategory, Prisma } from '@prisma/client';
+import { Job, User, JobStatus, JobCategory, Prisma, UrgencyLevel } from '@prisma/client';
 import { ServicesOverviewResponse, ServiceInsightDto, CraftsmanInsightDto } from './dto/service-insight.dto';
+import { JobWithRelations, SearchMetadata } from './dto/search-jobs.dto';
 
 export type { Job };
+
+/**
+ * Raw SQL query result for job with distance
+ */
+interface JobWithDistanceRaw extends Record<string, unknown> {
+  id: string;
+  distance: number;
+}
+
+/**
+ * Raw SQL count result
+ */
+interface CountResult {
+  count: bigint | string;
+}
 
 const CATEGORY_PRESENTATION: Record<JobCategory, { name: string; summary: string; slug: string; aliases: string[] }> = {
   [JobCategory.INSTALATII_SANITARE]: {
@@ -277,11 +293,11 @@ export class JobsService {
     latitude?: number;
     longitude?: number;
     radius?: number;
-    urgency?: any;
+    urgency?: UrgencyLevel;
     sortBy?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ data: any[]; meta: any }> {
+  }): Promise<{ data: JobWithRelations[]; meta: SearchMetadata }> {
     const {
       q,
       category,
@@ -431,11 +447,11 @@ export class JobsService {
     latitude: number;
     longitude: number;
     radius: number;
-    urgency?: any;
+    urgency?: UrgencyLevel;
     sortBy?: string;
     page: number;
     limit: number;
-  }): Promise<{ data: any[]; meta: any }> {
+  }): Promise<{ data: JobWithRelations[]; meta: SearchMetadata }> {
     const {
       q,
       category,
@@ -456,7 +472,7 @@ export class JobsService {
 
     // Build WHERE conditions for raw SQL
     const conditions: string[] = ['latitude IS NOT NULL', 'longitude IS NOT NULL'];
-    const values: any[] = [latitude, longitude, latitude, radius];
+    const values: (string | number)[] = [latitude, longitude, latitude, radius];
 
     if (status) {
       conditions.push(`status = $${values.length + 1}`);
@@ -502,7 +518,7 @@ export class JobsService {
     }
 
     // Raw SQL query with distance calculation
-    const jobsWithDistance: any[] = await this.prisma.$queryRawUnsafe(
+    const jobsWithDistance = await this.prisma.$queryRawUnsafe<JobWithDistanceRaw[]>(
       `
       SELECT
         j.*,
@@ -530,7 +546,7 @@ export class JobsService {
     );
 
     // Get total count
-    const countResult: any[] = await this.prisma.$queryRawUnsafe(
+    const countResult = await this.prisma.$queryRawUnsafe<CountResult[]>(
       `
       SELECT COUNT(*) as count
       FROM jobs j
