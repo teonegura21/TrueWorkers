@@ -117,12 +117,12 @@ export class EmailNotificationService implements OnModuleInit {
     }
   }
 
-  private renderTemplate(templateName: string, data: any): string {
+  private renderTemplate(templateName: string, data: Record<string, unknown>): string {
     const template = this.templates.get(templateName);
     if (!template) {
       this.logger.error(`Template not found: ${templateName}`);
       // Fallback to plain text
-      return `<html><body><h1>${data.title || 'Notification'}</h1><p>${data.message || JSON.stringify(data)}</p></body></html>`;
+      return `<html><body><h1>${(data.title as string) || 'Notification'}</h1><p>${(data.message as string) || JSON.stringify(data)}</p></body></html>`;
     }
 
     try {
@@ -133,7 +133,7 @@ export class EmailNotificationService implements OnModuleInit {
         error.stack,
       );
       // Fallback to plain text
-      return `<html><body><h1>${data.title || 'Notification'}</h1><p>${data.message || JSON.stringify(data)}</p></body></html>`;
+      return `<html><body><h1>${(data.title as string) || 'Notification'}</h1><p>${(data.message as string) || JSON.stringify(data)}</p></body></html>`;
     }
   }
 
@@ -141,7 +141,7 @@ export class EmailNotificationService implements OnModuleInit {
     to: string,
     subject: string,
     html: string,
-    attachments?: any[],
+    attachments?: Array<{ filename?: string; content?: string | Buffer; path?: string; contentType?: string }>,
   ): Promise<EmailResult> {
     if (!this.transporter) {
       return {
@@ -403,7 +403,7 @@ export class EmailNotificationService implements OnModuleInit {
     channel: NotificationChannel;
     status: NotificationStatus;
     title?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     errorMessage?: string;
   }): Promise<void> {
     try {

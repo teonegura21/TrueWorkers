@@ -23,6 +23,7 @@ import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
 import { RemoveDeviceTokenDto } from './dto/remove-device-token.dto';
 import { TestPushNotificationDto } from './dto/test-push-notification.dto';
 import { UpdateNotificationPreferenceDto } from './dto/update-notification-preference.dto';
+import { FirebaseAuthenticatedRequest } from './interfaces/auth-request.interface';
 import { FirebaseAuthGuard } from '../guards/firebase-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -80,7 +81,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.CREATED)
   async registerDeviceToken(
     @Body() dto: RegisterDeviceTokenDto,
-    @Req() req: any,
+    @Req() req: FirebaseAuthenticatedRequest,
   ) {
     const userId = req.user?.uid;
     if (!userId) {
@@ -98,7 +99,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   async removeDeviceToken(
     @Body() dto: RemoveDeviceTokenDto,
-    @Req() req: any,
+    @Req() req: FirebaseAuthenticatedRequest,
   ) {
     const userId = req.user?.uid;
     if (!userId) {
@@ -113,7 +114,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   async testPushNotification(
     @Body() dto: TestPushNotificationDto,
-    @Req() req: any,
+    @Req() req: FirebaseAuthenticatedRequest,
   ) {
     // Check if user is admin (you'll need to implement role checking)
     const userId = req.user?.uid;
@@ -142,7 +143,7 @@ export class NotificationsController {
   @Get('history/:userId')
   async getNotificationHistory(
     @Param('userId') userId: string,
-    @Req() req: any,
+    @Req() req: FirebaseAuthenticatedRequest,
   ) {
     const authUserId = req.user?.uid;
     if (!authUserId) {
@@ -170,7 +171,7 @@ export class NotificationsController {
   @Get('preferences/:userId')
   async getNotificationPreferences(
     @Param('userId') userId: string,
-    @Req() req: any,
+    @Req() req: FirebaseAuthenticatedRequest,
   ) {
     const authUserId = req.user?.uid;
     if (!authUserId) {
@@ -196,7 +197,7 @@ export class NotificationsController {
   async updateNotificationPreference(
     @Param('userId') userId: string,
     @Body() dto: UpdateNotificationPreferenceDto,
-    @Req() req: any,
+    @Req() req: FirebaseAuthenticatedRequest,
   ) {
     const authUserId = req.user?.uid;
     if (!authUserId) {

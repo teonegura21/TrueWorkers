@@ -473,7 +473,7 @@ export class PushNotificationService implements OnModuleInit {
     status: NotificationStatus;
     title?: string;
     body?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     deliveredAt?: Date;
     errorMessage?: string;
   }): Promise<void> {
