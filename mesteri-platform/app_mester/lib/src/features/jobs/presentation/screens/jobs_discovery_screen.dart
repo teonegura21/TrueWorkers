@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
-import '../../data/mock_craftsman_jobs.dart';
+import '../../../../core/services/jobs_service.dart';
 
 enum SortBy {
   newest,
@@ -20,6 +20,7 @@ class JobsDiscoveryScreen extends StatefulWidget {
 class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
     with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final JobsService _jobsService = JobsService();
   late AnimationController _fabAnimationController;
 
   // Search and filter states
@@ -30,7 +31,10 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
   bool _showFilters = false;
 
   // Jobs list state
-  List<CraftsmanJob> _filteredJobs = [];
+  List<dynamic> _allJobs = [];
+  List<dynamic> _filteredJobs = [];
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -40,7 +44,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
       vsync: this,
     );
     _fabAnimationController.forward();
-    _filteredJobs = mockCraftsmanJobs;
+    _loadJobs();
   }
 
   @override
@@ -48,6 +52,35 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
     _searchController.dispose();
     _fabAnimationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadJobs() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final jobs = await _jobsService.getAvailableJobs(
+        category: _selectedCategory,
+        status: 'ACTIVE',
+      );
+
+      if (mounted) {
+        setState(() {
+          _allJobs = jobs;
+          _filteredJobs = jobs;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -65,15 +98,76 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
             // Results count
             _buildResultsHeader(),
 
-            // Jobs list
+            // Jobs list or loading/error states
             Expanded(
-              child: _buildJobsList(),
+              child: _buildContent(),
             ),
           ],
         ),
       ),
       floatingActionButton: _buildFloatingActionButton(),
     );
+  }
+
+  Widget _buildContent() {
+    // Show loading state
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Se încarcă lucrările disponibile...'),
+          ],
+        ),
+      );
+    }
+
+    // Show error state
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
+              const SizedBox(height: 24),
+              const Text(
+                'Eroare la încărcare',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadJobs,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Încearcă din nou'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show jobs list
+    return _buildJobsList();
   }
 
   Widget _buildHeader() {
@@ -283,7 +377,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
 
   Widget _buildCategoryDropdown() {
     return DropdownButtonFormField<String>(
-      initialValue: _selectedCategory,
+      value: _selectedCategory,
       decoration: InputDecoration(
         labelText: 'Specializare',
         prefixIcon: const Icon(Icons.category_rounded),
@@ -394,7 +488,18 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
     );
   }
 
-  Widget _buildJobCard(CraftsmanJob job) {
+  Widget _buildJobCard(Map<String, dynamic> job) {
+    final title = job['title'] ?? 'Fără titlu';
+    final description = job['description'] ?? '';
+    final budgetMin = job['budgetMin'] ?? 0;
+    final budgetMax = job['budgetMax'] ?? 0;
+    final location = job['location'] ?? job['city'] ?? 'Necunoscut';
+    final isUrgent = (job['urgency'] ?? 'MEDIUM').toString().toUpperCase() == 'HIGH' ||
+                      (job['urgency'] ?? 'MEDIUM').toString().toUpperCase() == 'EMERGENCY';
+
+    // Calculate distance if latitude/longitude available
+    final distance = job['distance'] ?? 0.0;
+
     return GestureDetector(
       onTap: () => _openJobDetails(job),
       child: Container(
@@ -423,7 +528,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
               Row(
                 children: [
                   // Urgency indicator
-                  if (job.isUrgent)
+                  if (isUrgent)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -441,7 +546,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
                     ),
                   const Spacer(),
                   Text(
-                    '${job.budgetMin}-${job.budgetMax} ${AppConfig.currencySymbol}',
+                    '$budgetMin-$budgetMax ${AppConfig.currencySymbol}',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.successColor,
@@ -454,7 +559,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
 
               // Title
               Text(
-                job.title,
+                title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.onSurfaceColor,
@@ -467,7 +572,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
 
               // Description
               Text(
-                job.description,
+                description,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppTheme.onSurfaceSecondary,
                 ),
@@ -477,51 +582,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
 
               const SizedBox(height: 12),
 
-              // Client and ratings
-              Row(
-                children: [
-                  Icon(
-                    Icons.person_rounded,
-                    size: 16,
-                    color: AppTheme.onSurfaceSecondary,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      job.clientName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.onSurfaceColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const Spacer(),
-                  // Rating
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 14,
-                        color: AppTheme.ratingColor,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        job.clientRating.toStringAsFixed(1),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.onSurfaceColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Location and deadline
+              // Location
               Row(
                 children: [
                   Icon(
@@ -532,20 +593,12 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${job.distance.toStringAsFixed(1)} km • ${job.location}',
+                      distance > 0 ? '${distance.toStringAsFixed(1)} km • $location' : location,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.onSurfaceSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${_getDaysUntilDeadline(job.deadline)} zile',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.errorColor,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -558,9 +611,9 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildActionChip(
-                    icon: Icons.phone_rounded,
-                    label: 'CONTACT',
-                    onTap: () => _contactClient(job),
+                    icon: Icons.info_outline_rounded,
+                    label: 'DETALII',
+                    onTap: () => _openJobDetails(job),
                   ),
                   _buildActionChip(
                     icon: Icons.send_rounded,
@@ -710,23 +763,23 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
     }
   }
 
-  int _getDaysUntilDeadline(DateTime deadline) {
-    final now = DateTime.now();
-    return deadline.difference(now).inDays;
-  }
-
   void _performSearch() {
-    // Implement search logic
+    // Filter jobs based on search query and category
     setState(() {
-      _filteredJobs = mockCraftsmanJobs.where((job) {
-        final matchesQuery = _searchQuery.isEmpty ||
-            job.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            job.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            job.location.toLowerCase().contains(_searchQuery.toLowerCase());
+      _filteredJobs = _allJobs.where((job) {
+        final title = (job['title'] ?? '').toString().toLowerCase();
+        final description = (job['description'] ?? '').toString().toLowerCase();
+        final location = (job['location'] ?? job['city'] ?? '').toString().toLowerCase();
+        final query = _searchQuery.toLowerCase();
 
+        final matchesQuery = _searchQuery.isEmpty ||
+            title.contains(query) ||
+            description.contains(query) ||
+            location.contains(query);
+
+        final jobCategory = (job['category'] ?? '').toString();
         final matchesCategory = _selectedCategory == null ||
-            job.category == _selectedCategory ||
-            job.subCategory == _selectedCategory;
+            jobCategory == _selectedCategory;
 
         return matchesQuery && matchesCategory;
       }).toList();
@@ -734,7 +787,7 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
   }
 
   void _applyFilters() {
-    _performSearch();
+    _loadJobs();
   }
 
   void _clearFilters() {
@@ -743,35 +796,26 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
       _selectedCategory = null;
       _searchRadius = 50.0;
       _sortBy = SortBy.newest;
-      _filteredJobs = mockCraftsmanJobs;
+      _filteredJobs = _allJobs;
       _showFilters = false;
     });
     _searchController.clear();
   }
 
-  void _openJobDetails(CraftsmanJob job) {
+  void _openJobDetails(Map<String, dynamic> job) {
     // Navigate to job details screen
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Detalii pentru: ${job.title}'),
+        content: Text('Detalii pentru: ${job['title']}'),
       ),
     );
   }
 
-  void _contactClient(CraftsmanJob job) {
-    // Implement contact functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Contactează ${job.clientName}'),
-      ),
-    );
-  }
-
-  void _submitOffer(CraftsmanJob job) {
+  void _submitOffer(Map<String, dynamic> job) {
     // Navigate to submit offer screen
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Trimite ofertă pentru: ${job.title}'),
+        content: Text('Trimite ofertă pentru: ${job['title']}'),
       ),
     );
   }
@@ -780,16 +824,12 @@ class _JobsDiscoveryScreenState extends State<JobsDiscoveryScreen>
     // Navigate to advanced search screen
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Căutare avansată - în curând disponibile'),
+        content: Text('Căutare avansată - în curând disponibilă'),
       ),
     );
   }
 
   Future<void> _refreshJobs() async {
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _filteredJobs = mockCraftsmanJobs;
-    });
+    await _loadJobs();
   }
 }
