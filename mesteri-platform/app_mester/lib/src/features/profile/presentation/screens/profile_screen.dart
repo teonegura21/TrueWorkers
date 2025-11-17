@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_service.dart';
 
 enum ProfileTab {
   overview,
@@ -102,109 +104,6 @@ class Certificate {
     this.isVerified = false,
     required this.category,
   });
-}
-
-// Mock data
-final CraftsmanshipProfile mockProfile = CraftsmanshipProfile(
-  id: '1',
-  name: 'Ion Popescu',
-  email: 'ion.popescu@email.ro',
-  phone: '+40 735 123 456',
-  photoUrl: '',
-  bio: 'Meșter instalator cu 8 ani de experiență în lucrări sanitare și electrice. Lucrez cu materiale profesionale și respect toate standardele de calitate și siguranță. Disponibil în București și zona metropolitană.',
-  specialties: [
-    'Instalații Sanitare',
-    'Reparații Electrice',
-    'Montaj Mobilier Bucătărie',
-    'Gresie și Faianță'
-  ],
-  skills: [
-    'Lucrări urgente și intervenții rapide',
-    'Consultanță pentru proiecte noi',
-    'Măsurători și devizări gratuite',
-    'Garanție pentru toate lucrările'
-  ],
-  rating: 4.8,
-  completedProjects: 127,
-  yearsExperience: 8,
-  profileStatus: 'verified',
-  hasInsurance: true,
-  trustBadges: [
-    'verified',
-    'premium',
-    'fast_response',
-    'high_rated'
-  ],
-);
-
-final List<PortfolioItem> mockPortfolio = [
-  PortfolioItem(
-    id: '1',
-    title: 'Montaj Bucătărie Complet',
-    description: 'Renovare bucătărie complet cu electrocasnice integrate și sistem de ventilație. Proiect finalizat în 12 zile lucrătoare.',
-    imageUrls: ['kitchen1.jpg', 'kitchen2.jpg', 'kitchen3.jpg'],
-    category: 'Mobilier Bucătărie',
-    serviceType: 'Montaj Complet',
-    projectValue: 4500,
-    completionDate: DateTime.now().subtract(Duration(days: 30)),
-    rating: Rating(
-      value: 5.0,
-      reviewText: 'Munca de foarte bună calitate, respectat termenele și bugetul.',
-      date: DateTime.now().subtract(Duration(days: 30)),
-      clientName: 'Maria Ionescu',
-    ),
-  ),
-
-  PortfolioItem(
-    id: '2',
-    title: 'Reparație Centrală Termică',
-    description: 'Înlocuire completă centrală termică Ariston cu model nou și instalare conducte.',
-    imageUrls: ['heating1.jpg', 'heating2.jpg'],
-    category: 'Instalații de Gaz',
-    serviceType: 'Reparație Urgentă',
-    projectValue: 2800,
-    completionDate: DateTime.now().subtract(Duration(days: 45)),
-    rating: Rating(
-      value: 4.5,
-      reviewText: 'Recomand ! Mesaj telefonic timp de câteva minute și subsequent serviciu de intervenție.',
-      date: DateTime.now().subtract(Duration(days: 45)),
-      clientName: 'Alexandru Vasilescu',
-    ),
-  ),
-];
-
-final List<Certificate> mockCertificates = [
-  Certificate(
-    id: '1',
-    title: 'Autorizație ASC - instalații sanitare',
-    provider: 'Ministerul Dezvoltării',
-    description: 'Autorizație pentru executarea lucrărilor de instalații sanitare și termice prin centrale termice.',
-    issuedDate: DateTime(2020, 1, 15),
-    category: 'Instalații Sanitare',
-    isVerified: true,
-  ),
-
-  Certificate(
-    id: '2',
-    title: 'Certificat Electrician Autorizat',
-    provider: 'Camera de Comerț București',
-    description: 'Certificare ca electrician autorizat pentru lucrări electrice diferite de cea a instalațiilor electrice.',
-    issuedDate: DateTime(2021, 3, 20),
-    category: 'Instalații Electrice',
-    isVerified: true,
-  ),
-
-  Certificate(
-    id: '3',
-    title: 'Curs de Protecție și Securitate Muncii',
-    provider: 'Institutul Național de Formare Profesională',
-    description: 'Curs complet pentru lucrări înălțime și utilizare echipamente de protecție individuală.',
-    issuedDate: DateTime(2022, 6, 10),
-    expiryDate: DateTime(2025, 6, 10),
-    category: 'Sicuranță și Protecție',
-    isVerified: true,
-  ),
-];
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -217,12 +116,56 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   ProfileTab _selectedTab = ProfileTab.overview;
   late TabController _tabController;
+  final UserService _userService = UserService();
+
+  bool _isLoading = false;
+  String? _error;
+  Map<String, dynamic>? _profile;
+  List<dynamic> _portfolio = [];
+  List<dynamic> _certificates = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
     _tabController.addListener(_handleTabSelection);
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('Utilizator neautentificat');
+      }
+
+      final profile = await _userService.getUserProfile(currentUser.uid);
+      final portfolio = await _userService.getPortfolio(currentUser.uid);
+      final certificates = await _userService.getCertificates(currentUser.uid);
+
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _portfolio = portfolio;
+          _certificates = certificates;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().contains('Exception: ')
+              ? e.toString().substring(e.toString().indexOf('Exception: ') + 11)
+              : e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -295,7 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // Overview Tab - Professional Profile Summary
   Widget _buildOverviewTab() {
-    final profile = mockProfile;
+    final profile = _profile;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -334,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildProfileHeader() {
-    final profile = mockProfile;
+    final profile = _profile;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -444,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildProfessionalSummary() {
-    final profile = mockProfile;
+    final profile = _profile;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -538,7 +481,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SizedBox(height: 16),
 
           // Trust Badges
-          if (mockProfile.trustBadges.isNotEmpty) ...[
+          if (_profile.trustBadges.isNotEmpty) ...[
             Text(
               'Insigne de Încredere',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -551,7 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
             Wrap(
               spacing: 8,
-              children: mockProfile.trustBadges.map((badge) {
+              children: _profile.trustBadges.map((badge) {
                 return _TrustBadge(badge: _getBadgeText(badge));
               }).toList(),
             ),
@@ -560,7 +503,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ],
 
           // Skills
-          if (mockProfile.skills.isNotEmpty) ...[
+          if (_profile.skills.isNotEmpty) ...[
             Text(
               'Servicii Oférte',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -573,7 +516,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: mockProfile.skills.map((skill) {
+              children: _profile.skills.map((skill) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
@@ -602,7 +545,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildQuickStats() {
-    final profile = mockProfile;
+    final profile = _profile;
 
     return Row(
       children: [
@@ -635,12 +578,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: mockProfile.hasInsurance
+        color: _profile.hasInsurance
             ? AppTheme.successColor.withValues(alpha: 0.1)
             : AppTheme.warningColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: mockProfile.hasInsurance
+          color: _profile.hasInsurance
               ? AppTheme.successColor.withValues(alpha: 0.3)
               : AppTheme.warningColor.withValues(alpha: 0.3),
         ),
@@ -648,19 +591,19 @@ class _ProfileScreenState extends State<ProfileScreen>
       child: Column(
         children: [
           Icon(
-            mockProfile.hasInsurance
+            _profile.hasInsurance
                 ? Icons.security_rounded
                 : Icons.warning_rounded,
-            color: mockProfile.hasInsurance
+            color: _profile.hasInsurance
                 ? AppTheme.successColor
                 : AppTheme.warningColor,
             size: 24,
           ),
           const SizedBox(height: 4),
           Text(
-            mockProfile.hasInsurance ? 'Asigurat' : 'Fără Asigurare',
+            _profile.hasInsurance ? 'Asigurat' : 'Fără Asigurare',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: mockProfile.hasInsurance
+              color: _profile.hasInsurance
                   ? AppTheme.successColor
                   : AppTheme.warningColor,
               fontWeight: FontWeight.w600,
@@ -700,9 +643,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           height: 120,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: mockPortfolio.take(4).length,
+            itemCount: _portfolio.take(4).length,
             itemBuilder: (context, index) {
-              final item = mockPortfolio[index];
+              final item = _portfolio[index];
               return Container(
                 width: 160,
                 margin: const EdgeInsets.only(right: 12),
@@ -766,7 +709,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildContactInfo() {
-    final profile = mockProfile;
+    final profile = _profile;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -884,9 +827,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         crossAxisSpacing: 12,
         childAspectRatio: 0.8,
       ),
-      itemCount: mockPortfolio.length,
+      itemCount: _portfolio.length,
       itemBuilder: (context, index) {
-        final item = mockPortfolio[index];
+        final item = _portfolio[index];
         return PortfolioCard(item: item);
       },
     );
@@ -896,9 +839,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildCertificationsTab() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: mockCertificates.length,
+      itemCount: _certificates.length,
       itemBuilder: (context, index) {
-        final cert = mockCertificates[index];
+        final cert = _certificates[index];
         return CertificateCard(certificate: cert);
       },
     );
@@ -1042,10 +985,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: mockPortfolio.length,
+      itemCount: _portfolio.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
-        final item = mockPortfolio[index];
+        final item = _portfolio[index];
         return ReviewCard(portfolio: item);
       },
     );

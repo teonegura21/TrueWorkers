@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/projects_service.dart';
 
 class MilestoneManagementScreen extends StatefulWidget {
   final String projectId;
@@ -21,65 +23,45 @@ class _MilestoneManagementScreenState extends State<MilestoneManagementScreen> {
   final TextEditingController _estimatedCostController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
-  
-  final bool _isLoading = false;
-  bool _showAddMilestoneForm = false;
+  final ProjectsService _projectsService = ProjectsService();
 
-  // Mock milestone data
-  final List<Map<String, dynamic>> _milestones = [
-    {
-      'id': '1',
-      'title': 'Proiectare și Planificare',
-      'description': 'Analiza cerințelor clientului și planificarea etapelor de lucru',
-      'status': 'completed',
-      'progress': 1.0,
-      'estimatedCost': '500 RON',
-      'actualCost': '450 RON',
-      'startDate': '10 Dec 2024',
-      'endDate': '12 Dec 2024',
-      'paymentStatus': 'released',
-      'paymentAmount': '500 RON',
-    },
-    {
-      'id': '2',
-      'title': 'Achiziționarea Materialelor',
-      'description': 'Cumpărarea tuturor materialelor necesare pentru lucrare',
-      'status': 'in_progress',
-      'progress': 0.7,
-      'estimatedCost': '1500 RON',
-      'actualCost': '1400 RON',
-      'startDate': '13 Dec 2024',
-      'endDate': '15 Dec 2024',
-      'paymentStatus': 'released',
-      'paymentAmount': '1500 RON',
-    },
-    {
-      'id': '3',
-      'title': 'Execuție Lucrări',
-      'description': 'Realizarea efectivă a lucrărilor de instalații sanitare',
-      'status': 'pending',
-      'progress': 0.0,
-      'estimatedCost': '2000 RON',
-      'actualCost': '0 RON',
-      'startDate': '16 Dec 2024',
-      'endDate': '20 Dec 2024',
-      'paymentStatus': 'pending',
-      'paymentAmount': '2000 RON',
-    },
-    {
-      'id': '4',
-      'title': 'Testare și Finalizare',
-      'description': 'Verificarea funcționalității și predarea lucrării',
-      'status': 'pending',
-      'progress': 0.0,
-      'estimatedCost': '300 RON',
-      'actualCost': '0 RON',
-      'startDate': '21 Dec 2024',
-      'endDate': '21 Dec 2024',
-      'paymentStatus': 'pending',
-      'paymentAmount': '300 RON',
-    },
-  ];
+  bool _isLoading = false;
+  bool _showAddMilestoneForm = false;
+  String? _error;
+  List<dynamic> _milestones = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMilestones();
+  }
+
+  Future<void> _loadMilestones() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final milestones = await _projectsService.getProjectMilestones(widget.projectId);
+
+      if (mounted) {
+        setState(() {
+          _milestones = milestones;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().contains('Exception: ')
+              ? e.toString().substring(e.toString().indexOf('Exception: ') + 11)
+              : e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
