@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/craftsman.dart';
 import '../../services/craftsman_service.dart';
+import '../../../../core/services/craftsmen_api_service.dart';
 import '../../../reviews/presentation/widgets/review_card.dart';
 
 class CraftsmanProfileScreen extends StatefulWidget {
@@ -18,8 +19,11 @@ class CraftsmanProfileScreen extends StatefulWidget {
 
 class _CraftsmanProfileScreenState extends State<CraftsmanProfileScreen> {
   final CraftsmanService _service = CraftsmanService();
+  final CraftsmenApiService _apiService = CraftsmenApiService();
   Craftsman? _craftsman;
+  List<dynamic> _reviews = [];
   bool _isLoading = true;
+  bool _isLoadingReviews = false;
 
   @override
   void initState() {
@@ -34,6 +38,32 @@ class _CraftsmanProfileScreenState extends State<CraftsmanProfileScreen> {
       _craftsman = craftsman;
       _isLoading = false;
     });
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    if (_isLoadingReviews) return;
+
+    setState(() => _isLoadingReviews = true);
+    try {
+      final reviewsData = await _apiService.getCraftsmanReviews(
+        widget.craftsmanId,
+        limit: 3, // Preview shows only first 3 reviews
+      );
+      if (mounted) {
+        setState(() {
+          _reviews = reviewsData['reviews'] ?? [];
+          _isLoadingReviews = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _reviews = [];
+          _isLoadingReviews = false;
+        });
+      }
+    }
   }
 
   @override
@@ -472,26 +502,6 @@ class _CraftsmanProfileScreenState extends State<CraftsmanProfileScreen> {
   }
 
   Widget _buildReviewsPreview() {
-    // Mock reviews data - in real app, fetch from API
-    final mockReviews = [
-      {
-        'reviewerName': 'Teodor Negura',
-        'rating': 5.0,
-        'comment': 'Lucru impecabil! ${_craftsman!.fullName} a fost foarte profesionist. A terminat la timp și cu materiale de calitate. Recomand cu încredere!',
-        'date': DateTime.now().subtract(const Duration(days: 5)),
-        'tags': ['profesionist', 'punctual', 'calitate'],
-        'helpfulCount': 12,
-      },
-      {
-        'reviewerName': 'Ana Popescu',
-        'rating': 4.5,
-        'comment': 'Foarte mulțumită de rezultat. ${_craftsman!.fullName} a fost atent la detalii. Recomand!',
-        'date': DateTime.now().subtract(const Duration(days: 15)),
-        'tags': ['atenție la detalii', 'profesional'],
-        'helpfulCount': 8,
-      },
-    ];
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -516,10 +526,21 @@ class _CraftsmanProfileScreenState extends State<CraftsmanProfileScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ReviewsList(
-            reviews: mockReviews,
-            craftsmanId: _craftsman!.id,
-          ),
+          if (_isLoadingReviews)
+            const Center(child: CircularProgressIndicator())
+          else if (_reviews.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Nu există review-uri încă.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            )
+          else
+            ReviewsList(
+              reviews: _reviews,
+              craftsmanId: _craftsman!.id,
+            ),
         ],
       ),
     );
