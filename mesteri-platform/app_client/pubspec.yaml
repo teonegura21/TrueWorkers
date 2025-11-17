@@ -42,7 +42,7 @@ dependencies:
   firebase_analytics: ^10.8.0
   firebase_crashlytics: ^3.4.4
   firebase_messaging: ^14.7.9
-  flutter_local_notifications: ^16.3.0
+  flutter_local_notifications: ^19.0.0
   google_sign_in: ^6.2.1
 
   # UI/UX packages for modern design
@@ -76,8 +76,8 @@ dependencies:
 
   # Media upload dependencies
   image_picker: ^1.0.7
-  image_cropper: ^5.0.1
-  file_picker: ^6.1.1
+  image_cropper: ^8.0.0  # Updated to a more recent version
+  file_picker: ^8.0.3  # Updated to a more recent version
   photo_view: ^0.14.0
   video_compress: ^3.1.2
   permission_handler: ^11.2.0

@@ -1,10 +1,8 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../models/media/media_attachment.dart';
 import '../../models/media/media_enums.dart';
@@ -91,7 +89,7 @@ class MediaUploadService {
     }
   }
 
-  // Crop image
+  // Crop image - Updated for image_cropper 8.x
   Future<File?> cropImage({
     required File imageFile,
     CropStyle cropStyle = CropStyle.rectangle,
@@ -105,8 +103,6 @@ class MediaUploadService {
     try {
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: imageFile.path,
-        cropStyle: cropStyle,
-        aspectRatioPresets: aspectRatioPresets,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Image',
@@ -114,10 +110,13 @@ class MediaUploadService {
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.original,
             lockAspectRatio: false,
+            cropStyle: cropStyle,
+            aspectRatioPresets: aspectRatioPresets,
           ),
           IOSUiSettings(
             title: 'Crop Image',
             minimumAspectRatio: 1.0,
+            aspectRatioPresets: aspectRatioPresets,
           ),
         ],
       );

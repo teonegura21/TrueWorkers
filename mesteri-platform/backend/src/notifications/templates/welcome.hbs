@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bun venit la Mesteri Platform</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button:hover { background: #5568d3; }
+        .footer { text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 14px; }
+        .highlight { background: #fff; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 Bun venit la Mesteri Platform!</h1>
+    </div>
+    <div class="content">
+        <h2>Salut, {{fullName}}!</h2>
+        <p>Contul tău de <strong>{{role}}</strong> a fost creat cu succes pe {{accountCreatedDate}}.</p>
+        
+        <div class="highlight">
+            <p><strong>Email:</strong> {{email}}</p>
+            <p><strong>Rol:</strong> {{role}}</p>
+        </div>
+
+        <h3>Ce poți face acum:</h3>
+        <ul>
+            <li>✅ Completează-ți profilul pentru a fi mai vizibil</li>
+            <li>🔍 Explorează proiectele disponibile</li>
+            <li>💬 Comunică direct cu clienți sau meșteri</li>
+            <li>📊 Urmărește progresul proiectelor tale</li>
+        </ul>
+
+        <center>
+            <a href="{{loginUrl}}" class="button">Accesează Platforma</a>
+        </center>
+
+        <p>Dacă ai întrebări, nu ezita să ne contactezi la <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>.</p>
+    </div>
+    <div class="footer">
+        <p>© 2024 Mesteri Platform. Toate drepturile rezervate.</p>
+        <p>
+            <a href="https://mesteri.ro">Site Web</a> |
+            <a href="https://mesteri.ro/privacy">Politică Confidențialitate</a> |
+            <a href="{{unsubscribeUrl}}">Dezabonare</a>
+        </p>
+    </div>
+</body>
+</html>

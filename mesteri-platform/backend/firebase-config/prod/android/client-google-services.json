@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "860149546143",
+    "project_id": "trueworkers-prod",
+    "storage_bucket": "trueworkers-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860149546143:android:596908793627a0401836aa",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.client"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "860149546143-lb0eo58pq05vn8vlpng4hvgkqbbnnila.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCClmg2yjFM6uOarFVslYP2LBG7CqqEBEE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "860149546143-lb0eo58pq05vn8vlpng4hvgkqbbnnila.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

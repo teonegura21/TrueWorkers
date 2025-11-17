@@ -1,0 +1,924 @@
+// Mesteri Platform - Core Prisma Schema
+// Updated for MVP Phase 1 data model
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+  engineType      = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  CRAFTSMAN
+  ADMIN
+}
+
+enum UserType {
+  INDIVIDUAL
+  PFA
+  SRL
+}
+
+enum JobStatus {
+  ACTIVE
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+enum JobCategory {
+  INSTALATII_SANITARE
+  ELECTRIK
+  CONSTRUCTII
+  ALTELE
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  SIGNED
+  DECLINED
+  EXPIRED
+  VOID
+}
+
+enum ConversationType {
+  PROJECT
+  SUPPORT
+  SYSTEM
+}
+
+enum ConversationParticipantRole {
+  CLIENT
+  MESTER
+  SUPPORT
+  SYSTEM
+}
+
+enum MessageKind {
+  TEXT
+  SYSTEM
+  NOTICE
+}
+
+enum AttachmentStatus {
+  PENDING
+  ACTIVE
+  QUARANTINED
+  DELETED
+}
+
+enum AttachmentEntity {
+  MESSAGE
+  CONTRACT
+  PROJECT
+  MILESTONE
+  WORK_LOG
+}
+
+enum ProjectEventType {
+  STATUS_CHANGE
+  CONTRACT_SIGNED
+  MESSAGE_FLAGGED
+  GUARANTEE_UPDATED
+  NOTE_ADDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REJECTED
+  REPORTED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  PAYPAL
+  CRYPTO
+  OTHER
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REJECTED
+  REPORTED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  firebaseUid  String?   @unique
+  fullName     String
+  role         UserRole  @default(CLIENT)
+  userType     UserType?
+
+  // Location
+  city      String
+  county    String
+  address   String?
+  latitude  Float? // GPS coordinates for geo-search
+  longitude Float? // GPS coordinates for geo-search
+
+  // Professional info
+  specialties   String[] @default([])
+  isVerified    Boolean  @default(false)
+  averageRating Float    @default(5.0)
+  totalReviews  Int      @default(0)
+
+  // Additional fields for backward compatibility
+  phone        String?
+  profileImage String?
+  bio          String?
+  rating       Float?
+  reviewCount  Int?
+
+  // Enhanced craftsman profile fields (PHASE 1)
+  profilePicture    String? // Profile photo URL
+  portfolioPhotos   String[] @default([]) // Work sample URLs (5-10 photos)
+  yearsExperience   Int? // Years in trade
+  skillsTags        String[] @default([]) // Skills as array
+  certifications    String[] @default([]) // Professional certifications
+  insuranceVerified Boolean  @default(false)
+  availability      String? // "Available now", "Busy until..."
+
+  // Relations
+  postedJobs               Job[]
+  offers                   Offer[]
+  receivedReviews          Review[]                  @relation("RevieweeRelation")
+  sentReviews              Review[]                  @relation("ReviewerRelation")
+  sentMessages             Message[]                 @relation("MessageSender")
+  notifications            Notification[]
+  clientProjects           Project[]                 @relation("ProjectClient")
+  craftsmanProjects        Project[]                 @relation("ProjectCraftsman")
+  conversationParticipants ConversationParticipant[]
+  conversationsCreated     Conversation[]            @relation("ConversationCreator")
+  attachmentsUploaded      Attachment[]              @relation("AttachmentUploader")
+  projectEvents            ProjectEvent[]
+
+  paymentsAsUser   Payment[]
+  paymentsAsMaster Payment[]    @relation("MasterPayments")
+  paymentsAsClient Payment[]    @relation("ClientPayments")
+  wallet           Wallet?
+  withdrawals      Withdrawal[]
+
+  verificationRequests         VerificationRequest[]
+  reviewedVerificationRequests VerificationRequest[] @relation("ReviewedVerificationRequests")
+  verificationBadges           VerificationBadge[]
+
+  // Inspiration posts created by this craftsman
+  inspirationPosts InspirationPost[] @relation("CraftsmanPosts")
+
+  // Search and analytics
+  searchHistory   SearchHistory[]
+  savedCraftsmen  SavedCraftsman[] @relation("UserSavedCraftsmen")
+  savedByUsers    SavedCraftsman[] @relation("CraftsmanSavedBy")
+  analyticsEvents AnalyticsEvent[]
+
+  // Notification system
+  deviceTokens            DeviceToken[]
+  notificationPreferences NotificationPreference[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// Inspiration Feed Model (TikTok-style) - PHASE 2
+model InspirationPost {
+  id String @id @default(cuid())
+
+  // Craftsman who created the post
+  craftsmanId String
+  craftsman   User   @relation("CraftsmanPosts", fields: [craftsmanId], references: [id])
+
+  // Content
+  title       String // e.g. "Renovare baie completă"
+  description String // Romanian description of the work
+
+  // Media
+  beforePhoto      String? // Before work photo URL
+  afterPhoto       String // After work photo URL (required)
+  additionalPhotos String[] @default([]) // More work photos
+  videoUrl         String? // Optional video
+
+  // Categorization
+  skillsShowcased String[] @default([]) // Skills demonstrated
+  category        String? // Job category
+  location        String // Where work was done
+  city            String // City
+  latitude        Float? // GPS for location
+  longitude       Float? // GPS for location
+
+  // Engagement metrics
+  likes  Int @default(0)
+  views  Int @default(0)
+  shares Int @default(0)
+
+  // Promotion (self-promotion capability)
+  isPromoted      Boolean   @default(false)
+  promotionEnds   DateTime?
+  promotionBudget Float? // RON spent on promotion
+
+  // Metadata
+  isPublished Boolean @default(true)
+  isPinned    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([craftsmanId])
+  @@index([createdAt])
+  @@index([likes])
+  @@index([views])
+  @@map("inspiration_posts")
+}
+
+model Job {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  category    JobCategory
+  location    String
+  city        String
+  latitude    Float? // Job location GPS
+  longitude   Float? // Job location GPS
+  budgetMin   Float
+  budgetMax   Float
+  urgency     UrgencyLevel @default(MEDIUM)
+  status      JobStatus    @default(ACTIVE)
+
+  clientId String
+  client   User   @relation(fields: [clientId], references: [id])
+
+  offers        Offer[]
+  notifications Notification[]
+  project       Project?       @relation("JobToProject")
+  mediaUrls     String[]       @default([])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Message   Message[]
+
+  // Performance indexes for search and filtering
+  @@index([category])
+  @@index([status])
+  @@index([city])
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([latitude, longitude])
+  @@index([urgency])
+  @@map("jobs")
+}
+
+model Offer {
+  id            String  @id @default(cuid())
+  bidAmount     Float
+  estimatedDays Int
+  notes         String?
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id])
+
+  craftsmanId String
+  craftsman   User   @relation(fields: [craftsmanId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("offers")
+}
+
+model RetentionPolicy {
+  id                  String   @id @default(uuid())
+  code                String   @unique
+  description         String?
+  activeDays          Int
+  archiveDays         Int
+  hardDeleteAfterDays Int?
+  requiresLegalReview Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  contracts     Contract[]
+  conversations Conversation[]
+  messages      Message[]
+  attachments   Attachment[]
+
+  @@map("retention_policies")
+}
+
+model Contract {
+  id                    String          @id @default(uuid())
+  projectId             String
+  project               Project         @relation(fields: [projectId], references: [id])
+  primaryForProject     Project?        @relation("PrimaryProjectContract")
+  version               Int             @default(1)
+  status                ContractStatus  @default(DRAFT)
+
+  // SignRequest integration fields
+  signRequestDocumentId String?         @unique // UUID from SignRequest API
+  signRequestStatus     String?         // Raw status from SignRequest
+
+  // Signature timestamps
+  clientSignedAt        DateTime?
+  mesterSignedAt        DateTime?
+  signedAt              DateTime?       // When both parties completed signing
+
+  // Storage and retention
+  guaranteeExpiresAt    DateTime?
+  retentionPolicyId     String
+  retentionPolicy       RetentionPolicy @relation(fields: [retentionPolicyId], references: [id])
+  storageObjectPath     String          // GCS path to signed PDF
+  hashSha256            String?         // PDF hash for integrity
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([projectId, status])
+  @@index([projectId, version])
+  @@index([signRequestDocumentId])
+  @@map("contracts")
+}
+
+model Conversation {
+  id                String           @id @default(uuid())
+  projectId         String?
+  project           Project?         @relation("ProjectConversations", fields: [projectId], references: [id])
+  primaryProject    Project?         @relation("ProjectPrimaryConversation")
+  type              ConversationType
+  title             String?
+  createdById       String
+  createdBy         User             @relation("ConversationCreator", fields: [createdById], references: [id])
+  retentionPolicyId String
+  retentionPolicy   RetentionPolicy  @relation(fields: [retentionPolicyId], references: [id])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId    String
+  conversation      Conversation                @relation(fields: [conversationId], references: [id])
+  userId            String
+  user              User                        @relation(fields: [userId], references: [id])
+  role              ConversationParticipantRole
+  joinedAt          DateTime                    @default(now())
+  lastReadMessageId String?
+  lastReadMessage   Message?                    @relation("ConversationParticipantLastRead", fields: [lastReadMessageId], references: [id])
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id                String          @id @default(uuid())
+  conversationId    String
+  conversation      Conversation    @relation(fields: [conversationId], references: [id])
+  senderId          String?
+  sender            User?           @relation("MessageSender", fields: [senderId], references: [id])
+  kind              MessageKind     @default(TEXT)
+  body              String?
+  metadata          Json?
+  replyToMessageId  String?
+  replyTo           Message?        @relation("MessageThread", fields: [replyToMessageId], references: [id])
+  threadReplies     Message[]       @relation("MessageThread")
+  jobId             String?
+  job               Job?            @relation(fields: [jobId], references: [id])
+  sentAt            DateTime        @default(now())
+  editedAt          DateTime?
+  deletedAt         DateTime?
+  retentionPolicyId String
+  retentionPolicy   RetentionPolicy @relation(fields: [retentionPolicyId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  participantReads ConversationParticipant[] @relation("ConversationParticipantLastRead")
+  attachments      AttachmentLink[]
+
+  @@index([conversationId, sentAt])
+  @@map("messages")
+}
+
+model Attachment {
+  id                String           @id @default(uuid())
+  bucket            String
+  objectPath        String
+  contentType       String
+  fileSize          Int
+  checksumSha256    String
+  uploadedById      String
+  uploadedBy        User             @relation("AttachmentUploader", fields: [uploadedById], references: [id])
+  retentionPolicyId String
+  retentionPolicy   RetentionPolicy  @relation(fields: [retentionPolicyId], references: [id])
+  status            AttachmentStatus @default(PENDING)
+  uploadedAt        DateTime         @default(now())
+
+  links AttachmentLink[]
+
+  @@unique([bucket, objectPath])
+  @@map("attachments")
+}
+
+model AttachmentLink {
+  attachmentId String
+  attachment   Attachment       @relation(fields: [attachmentId], references: [id])
+  entityType   AttachmentEntity
+  entityId     String
+  role         String?
+  createdAt    DateTime         @default(now())
+  Message      Message?         @relation(fields: [messageId], references: [id])
+  messageId    String?
+
+  @@id([attachmentId, entityType, entityId])
+  @@map("attachment_links")
+}
+
+model ProjectEvent {
+  id        String           @id @default(uuid())
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id])
+  actorId   String?
+  actor     User?            @relation(fields: [actorId], references: [id])
+  eventType ProjectEventType
+  payload   Json?
+  createdAt DateTime         @default(now())
+
+  @@index([projectId, createdAt])
+  @@map("project_events")
+}
+
+model Review {
+  id           String    @id @default(cuid())
+  rating       Int
+  comment      String?
+  projectId    String    @unique
+  status       String    @default("pending")
+  tags         String[]  @default([])
+  helpfulCount Int       @default(0)
+  respondedAt  DateTime?
+
+  revieweeId String
+  reviewee   User   @relation(fields: [revieweeId], references: [id], name: "RevieweeRelation")
+
+  reviewerId String
+  reviewer   User   @relation(fields: [reviewerId], references: [id], name: "ReviewerRelation")
+
+  createdAt DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Notification {
+  id      String  @id @default(cuid())
+  title   String
+  message String
+  type    String
+  isRead  Boolean @default(false)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+enum ProjectStatus {
+  FUNDED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  title           String?
+  description     String
+  totalBudget     Float
+  status          ProjectStatus @default(FUNDED)
+  progressPercent Int           @default(0)
+
+  jobId String @unique
+  job   Job    @relation("JobToProject", fields: [jobId], references: [id])
+
+  clientId    String
+  craftsmanId String
+  client      User   @relation("ProjectClient", fields: [clientId], references: [id])
+  craftsman   User   @relation("ProjectCraftsman", fields: [craftsmanId], references: [id])
+
+  agreedPrice Float?
+
+  startDate DateTime?
+  deadline  DateTime?
+  endDate   DateTime?
+
+  notes            String?
+  galleryUrls      String[]    @default([])
+  milestones       Json?
+  milestoneRecords Milestone[] @relation("ProjectMilestones")
+
+  primaryContractId     String?       @unique
+  primaryContract       Contract?     @relation("PrimaryProjectContract", fields: [primaryContractId], references: [id])
+  guaranteeExpiresAt    DateTime?
+  mediaBeforeCount      Int           @default(0)
+  mediaAfterCount       Int           @default(0)
+  primaryConversationId String?       @unique
+  primaryConversation   Conversation? @relation("ProjectPrimaryConversation", fields: [primaryConversationId], references: [id])
+
+  contracts     Contract[]
+  conversations Conversation[] @relation("ProjectConversations")
+  events        ProjectEvent[]
+  payments      Payment[]
+
+  createdAt DateTime @default(now())
+
+  @@map("projects")
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("pending")
+  dueDate     DateTime?
+
+  projectId String
+  project   Project @relation("ProjectMilestones", fields: [projectId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("milestones")
+}
+
+model Payment {
+  id                     String        @id @default(cuid())
+  amount                 Float
+  currency               String
+  status                 PaymentStatus @default(PENDING)
+  method                 PaymentMethod
+  userId                 String
+  user                   User          @relation(fields: [userId], references: [id])
+  projectId              String?
+  project                Project?      @relation(fields: [projectId], references: [id])
+  masterId               String
+  master                 User          @relation("MasterPayments", fields: [masterId], references: [id])
+  clientId               String
+  client                 User          @relation("ClientPayments", fields: [clientId], references: [id])
+  processedAt            DateTime?
+  completedAt            DateTime?
+  failedAt               DateTime?
+  failureReason          String?
+  cancelledAt            DateTime?
+  cancellationReason     String?
+  verifiedAt             DateTime?
+  rejectedAt             DateTime?
+  rejectionReason        String?
+  reportedAt             DateTime?
+  reportReason           String?
+  refundedAt             DateTime?
+  refundReason           String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  description            String?
+  paymentMethod          String?
+  flaggedAsInappropriate Boolean?
+
+  @@map("payments")
+}
+
+model Wallet {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  balance          Float     @default(0)
+  pendingBalance   Float     @default(0)
+  totalEarnings    Float     @default(0)
+  totalWithdrawn   Float     @default(0)
+  verifiedAt       DateTime?
+  suspendedAt      DateTime?
+  suspensionReason String?
+  kycStatus        String    @default("pending")
+  kycSubmittedAt   DateTime?
+  kycDocuments     Json?
+  bankAccounts     Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  withdrawals Withdrawal[]
+
+  @@map("wallets")
+}
+
+model Withdrawal {
+  id                 String           @id @default(cuid())
+  walletId           String
+  wallet             Wallet           @relation(fields: [walletId], references: [id])
+  userId             String
+  user               User             @relation(fields: [userId], references: [id])
+  amount             Float
+  currency           String
+  status             WithdrawalStatus @default(PENDING)
+  processedAt        DateTime?
+  completedAt        DateTime?
+  failedAt           DateTime?
+  failureReason      String?
+  verifiedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  reportedAt         DateTime?
+  reportReason       String?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("withdrawals")
+}
+
+enum DocumentType {
+  ID_CARD
+  PASSPORT
+  DRIVING_LICENSE
+  BUSINESS_REGISTRATION
+  INSURANCE_POLICY
+  OTHER
+}
+
+enum VerificationRequestType {
+  IDENTITY
+  BUSINESS
+  SKILL
+  INSURANCE
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum VerificationRequestStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model VerificationRequest {
+  id              String                    @id @default(cuid())
+  userId          String
+  user            User                      @relation(fields: [userId], references: [id])
+  type            VerificationRequestType
+  status          VerificationRequestStatus @default(PENDING)
+  submittedAt     DateTime                  @default(now())
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  reviewerId      String?
+  reviewer        User?                     @relation("ReviewedVerificationRequests", fields: [reviewerId], references: [id])
+  notes           String?
+  rejectionReason String?
+  expiresAt       DateTime?
+
+  documents Document[]
+
+  @@map("verification_requests")
+}
+
+model Document {
+  id                    String              @id @default(cuid())
+  verificationRequestId String
+  verificationRequest   VerificationRequest @relation(fields: [verificationRequestId], references: [id])
+  type                  DocumentType
+  url                   String
+  fileName              String
+  uploadedAt            DateTime            @default(now())
+  status                DocumentStatus      @default(UPLOADED)
+  verifiedAt            DateTime?
+  rejectedAt            DateTime?
+  rejectionReason       String?
+
+  @@map("documents")
+}
+
+model VerificationBadge {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  type        String
+  name        String
+  description String
+  icon        String
+  awardedAt   DateTime  @default(now())
+  isActive    Boolean   @default(true)
+  expiresAt   DateTime?
+
+  @@unique([userId, type])
+  @@map("verification_badges")
+}
+
+// Search History for user search tracking
+model SearchHistory {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query          String
+  filters        Json? // Stores search filters as JSON
+  category       String? // Job category searched
+  location       String? // Location searched
+  latitude       Float?
+  longitude      Float?
+  radiusKm       Int? // Search radius
+  resultsCount   Int? // Number of results returned
+  clickedResults Json?    @default("[]") // Array of clicked result IDs
+  searchedAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([searchedAt])
+  @@map("search_history")
+}
+
+// Saved Craftsmen for user favorites
+model SavedCraftsman {
+  userId      String
+  user        User     @relation("UserSavedCraftsmen", fields: [userId], references: [id], onDelete: Cascade)
+  craftsmanId String
+  craftsman   User     @relation("CraftsmanSavedBy", fields: [craftsmanId], references: [id], onDelete: Cascade)
+  savedAt     DateTime @default(now())
+  notes       String? // Personal notes about the craftsman
+  tags        String[] @default([]) // Custom tags
+
+  @@id([userId, craftsmanId])
+  @@index([userId])
+  @@index([craftsmanId])
+  @@map("saved_craftsmen")
+}
+
+// Analytics Events for tracking user behavior
+enum AnalyticsEventType {
+  PAGE_VIEW
+  SEARCH
+  PROFILE_VIEW
+  JOB_POST
+  OFFER_SUBMIT
+  MESSAGE_SENT
+  REVIEW_SUBMIT
+  PAYMENT_INITIATED
+  PAYMENT_COMPLETED
+  CONTRACT_SIGNED
+  PROJECT_CREATED
+  INSPIRATION_VIEW
+  INSPIRATION_LIKE
+  CRAFTSMAN_CONTACT
+  APP_OPEN
+  APP_CLOSE
+  FEATURE_USED
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum NotificationType {
+  NEW_JOB
+  OFFER_ACCEPTED
+  CONTRACT_SIGNED
+  PAYMENT_RECEIVED
+  NEW_MESSAGE
+  WELCOME
+  PROJECT_COMPLETED
+  OFFER_SUBMITTED
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+model AnalyticsEvent {
+  id         String             @id @default(cuid())
+  userId     String?
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId  String?
+  eventType  AnalyticsEventType
+  eventName  String // Custom event name
+  properties Json? // Event-specific data
+
+  // Context
+  platform   String? // 'web', 'ios', 'android'
+  appVersion String?
+  deviceInfo Json? // Device details
+  ipAddress  String?
+  userAgent  String?
+  referrer   String?
+
+  // Location context
+  latitude  Float?
+  longitude Float?
+  city      String?
+  country   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+// Device Tokens for Push Notifications
+model DeviceToken {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String
+  platform   DevicePlatform
+  createdAt  DateTime       @default(now())
+  lastUsedAt DateTime       @default(now())
+
+  @@unique([userId, token])
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// Notification Preferences
+model NotificationPreference {
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationType NotificationType
+  pushEnabled      Boolean          @default(true)
+  emailEnabled     Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([userId, notificationType])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+// Notification Delivery Log
+model NotificationLog {
+  id           String              @id @default(cuid())
+  userId       String
+  type         NotificationType
+  channel      NotificationChannel
+  status       NotificationStatus
+  title        String?
+  body         String?
+  metadata     Json?
+  sentAt       DateTime            @default(now())
+  deliveredAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime            @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([sentAt])
+  @@map("notification_logs")
+}

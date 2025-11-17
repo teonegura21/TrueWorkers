@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can only access their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // User notifications subcollection
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // User preferences subcollection
+      match /preferences/{preferenceId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Active projects subcollection
+      match /active_projects/{projectId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Projects collection - project participants can access project data
+    match /projects/{projectId} {
+      allow read, write: if request.auth != null && 
+        (isProjectParticipant(projectId, request.auth.uid) || isAdmin());
+      
+      // Project messages subcollection
+      match /messages/{messageId} {
+        allow read: if request.auth != null && 
+          isProjectParticipant(projectId, request.auth.uid);
+        allow create: if request.auth != null && 
+          isProjectParticipant(projectId, request.auth.uid) &&
+          request.auth.uid == resource.data.senderId;
+        allow update: if request.auth != null && 
+          request.auth.uid == resource.data.senderId;
+        allow delete: if request.auth != null && 
+          (request.auth.uid == resource.data.senderId || isAdmin());
+      }
+      
+      // Project contracts subcollection
+      match /contracts/{contractId} {
+        allow read, write: if request.auth != null && 
+          isProjectParticipant(projectId, request.auth.uid);
+      }
+      
+      // Project participants subcollection
+      match /participants/{participantId} {
+        allow read: if request.auth != null && 
+          (isProjectParticipant(projectId, request.auth.uid) || isAdmin());
+        allow write: if request.auth != null && isAdmin();
+      }
+      
+      // Project activities subcollection
+      match /activities/{activityId} {
+        allow read: if request.auth != null && 
+          isProjectParticipant(projectId, request.auth.uid);
+        allow create: if request.auth != null && 
+          isProjectParticipant(projectId, request.auth.uid);
+        allow update, delete: if request.auth != null && isAdmin();
+      }
+    }
+    
+    // Helper function to check if user is project participant
+    function isProjectParticipant(projectId, userId) {
+      return exists(/databases/$(database)/documents/projects/$(projectId)/participants/$(userId));
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+        request.auth.token.role == 'admin';
+    }
+    
+    // Helper function to check user role
+    function hasRole(role) {
+      return request.auth != null && 
+        request.auth.token.role == role;
+    }
+    
+    // Helper function to check if user is client
+    function isClient() {
+      return hasRole('client') || 
+        (request.auth != null && request.auth.token.roleCode == 0);
+    }
+    
+    // Helper function to check if user is craftsman
+    function isCraftsman() {
+      return hasRole('craftsman') || 
+        (request.auth != null && request.auth.token.roleCode == 1);
+    }
+  }
+}

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract de Prestări Servicii</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+        }
+        .party-details, .project-details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ecf0f1;
+        }
+        strong {
+            color: #34495e;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #ecf0f1;
+        }
+        .total {
+            font-weight: bold;
+            font-size: 1.2em;
+            text-align: right;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .signatures {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            padding: 20px;
+            border-top: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Contract de Prestări Servicii</h1>
+        <p>Nr. {{project.id}} / Data: {{currentDate}}</p>
+    </div>
+
+    <div class="section">
+        <h2>1. Părțile Contractante</h2>
+        <div class="party-details">
+            <p>
+                <strong>Beneficiar:</strong> {{project.client.fullName}}, <br>
+                Email: {{project.client.email}}, <br>
+                Adresă: {{project.client.address}}, {{project.client.city}}, {{project.client.county}}
+            </p>
+            <hr>
+            <p>
+                <strong>Executant (Mester):</strong> {{project.craftsman.fullName}}, <br>
+                Email: {{project.craftsman.email}}, <br>
+                Adresă: {{project.craftsman.address}}, {{project.craftsman.city}}, {{project.craftsman.county}}
+            </p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Obiectul Contractului</h2>
+        <div class="project-details">
+            <p>Executantul se obligă să presteze serviciile descrise în cadrul proiectului <strong>"{{project.title}}"</strong>, conform specificațiilor agreate pe platforma Mesteri.</p>
+            <p><strong>Descriere detaliată:</strong></p>
+            <p>{{project.description}}</p>
+            <p><strong>Locația lucrării:</strong> {{project.job.location}}, {{project.job.city}}</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Valoarea și Modalități de Plată</h2>
+        <p>Valoarea totală a lucrărilor contractate este de <strong>{{project.totalBudget}} RON</strong>.</p>
+        {{#if project.milestoneRecords}}
+        <p>Plata se va efectua conform următoarelor etape (milestones):</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Etapa</th>
+                    <th>Descriere</th>
+                    <th>Data limită</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each project.milestoneRecords}}
+                <tr>
+                    <td>{{this.title}}</td>
+                    <td>{{this.description}}</td>
+                    <td>{{this.dueDate}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+        {{/if}}
+        <p class="total">Total Agreat: {{project.totalBudget}} RON</p>
+        <p>Plățile se vor procesa exclusiv prin sistemul de plăți securizat al platformei Mesteri, conform Termenilor și Condițiilor platformei.</p>
+    </div>
+
+    <div class="section">
+        <h2>4. Durata Contractului</h2>
+        <p>Perioada de execuție a lucrărilor este de la <strong>{{project.startDate}}</strong> până la <strong>{{project.deadline}}</strong>.</p>
+    </div>
+
+    <div class="section">
+        <h2>5. Termeni și Condiții Generale</h2>
+        <ol>
+            <li><strong>Calitate:</strong> Executantul garantează calitatea lucrărilor și se angajează să remedieze orice viciu ascuns sau neconformitate apărută din vina sa.</li>
+            <li><strong>Recepție:</strong> La finalizarea fiecărei etape (dacă este cazul) și la finalul lucrării, Beneficiarul va inspecta și valida calitatea serviciilor prin intermediul platformei.</li>
+            <li><strong>Confidențialitate:</strong> Ambele părți se obligă să păstreze confidențialitatea datelor și informațiilor obținute pe parcursul derulării acestui contract.</li>
+            <li><strong>Forța Majoră:</strong> Niciuna dintre părți nu va fi răspunzătoare pentru neexecutarea la termen sau/și necorespunzătoare, total sau parțial, a oricărei obligații care îi revine în baza prezentului contract, dacă neexecutarea obligației respective a fost cauzată de un eveniment de forță majoră.</li>
+            <li><strong>Litigii:</strong> Orice dispută legată de acest contract va fi soluționată pe cale amiabilă. În caz contrar, litigiul va fi soluționat prin intermediul mecanismelor de dispută ale platformei Mesteri sau, în ultimă instanță, de către instanțele judecătorești competente.</li>
+            <li><strong>Legea Aplicabilă:</strong> Acest contract este guvernat de legea română.</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>6. Semnături</h2>
+        <p>Prin semnarea digitală a acestui document, ambele părți confirmă că au citit, înțeles și sunt de acord cu toți termenii și condițiile prezentului contract.</p>
+        <div class="signatures">
+            <div class="signature-box">
+                <p><strong>Beneficiar,</strong></p>
+                <p>{{project.client.fullName}}</p>
+                <br>
+                [[s|1|r:1]]
+            </div>
+            <div class="signature-box">
+                <p><strong>Executant,</strong></p>
+                <p>{{project.craftsman.fullName}}</p>
+                <br>
+                [[s|2|r:1]]
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Acest document este generat electronic prin platforma Mesteri și este validat prin semnătură digitală.</p>
+    </div>
+
+</body>
+</html>

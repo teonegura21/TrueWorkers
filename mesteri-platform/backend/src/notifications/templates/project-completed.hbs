@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proiect Finalizat</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; padding: 12px 30px; background: #8b5cf6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button:hover { background: #6d28d9; }
+        .footer { text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 14px; }
+        .celebration { font-size: 64px; text-align: center; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎊 Proiect Finalizat!</h1>
+    </div>
+    <div class="content">
+        <div class="celebration">🏆</div>
+        <h2>Felicitări, {{fullName}}!</h2>
+        <p>Proiectul <strong>{{projectTitle}}</strong> a fost marcat ca finalizat pe {{completionDate}}.</p>
+        
+        <p><strong>Valoare Finală:</strong> {{finalAmount}} RON</p>
+
+        <h3>Următorii pași:</h3>
+        <p>{{nextSteps}}</p>
+
+        <center>
+            <a href="{{reviewUrl}}" class="button">Lasă o Recenzie</a>
+            <a href="{{viewProjectUrl}}" class="button" style="background: #6b7280;">Vezi Proiectul</a>
+        </center>
+
+        <p>Feedback-ul tău este important pentru comunitatea Mesteri Platform!</p>
+    </div>
+    <div class="footer">
+        <p>© 2024 Mesteri Platform. Toate drepturile rezervate.</p>
+        <p>
+            <a href="https://mesteri.ro">Site Web</a> |
+            <a href="{{unsubscribeUrl}}">Dezabonare</a>
+        </p>
+    </div>
+</body>
+</html>

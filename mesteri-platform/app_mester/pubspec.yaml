@@ -56,12 +56,12 @@ dependencies:
 
   # Notification dependencies
   firebase_messaging: ^15.2.10
-  flutter_local_notifications: ^16.3.0
+  flutter_local_notifications: ^19.0.0
 
   # Media upload dependencies
   image_picker: ^1.0.7
-  image_cropper: ^5.0.1
-  file_picker: ^6.1.1
+  image_cropper: ^8.0.0  # Updated to a more recent version
+  file_picker: ^8.0.3  # Updated to a more recent version
   cached_network_image: ^3.4.1
   video_player: ^2.8.6
   photo_view: ^0.14.0

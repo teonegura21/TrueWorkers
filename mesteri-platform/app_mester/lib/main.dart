@@ -6,7 +6,6 @@ import 'src/core/services/secure_storage_service.dart';
 import 'src/features/auth/presentation/screens/welcome_screen.dart';
 import 'src/navigation/main_navigator.dart';
 import 'services/push_notification_service.dart';
-import 'handlers/notification_handler.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

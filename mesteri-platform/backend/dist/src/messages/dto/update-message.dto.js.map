@@ -1,0 +1,1 @@
+{"version":3,"file":"update-message.dto.js","sourceRoot":"","sources":["../../../../src/messages/dto/update-message.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAwD;AAExD,MAAa,gBAAgB;IAG3B,MAAM,CAAW;CAClB;AAJD,4CAIC;AADC;IAFC,IAAA,2BAAS,GAAE;IACX,IAAA,4BAAU,GAAE;;gDACI;AAGnB,MAAa,aAAa;IAGxB,UAAU,CAAW;CACtB;AAJD,sCAIC;AADC;IAFC,IAAA,2BAAS,GAAE;IACX,IAAA,4BAAU,GAAE;;iDACQ"}

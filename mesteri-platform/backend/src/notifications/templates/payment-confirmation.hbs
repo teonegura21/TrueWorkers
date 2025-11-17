@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmare Plată</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; padding: 12px 30px; background: #3b82f6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button:hover { background: #1d4ed8; }
+        .footer { text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 14px; }
+        .payment-details { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .amount { font-size: 32px; color: #10b981; font-weight: bold; text-align: center; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💰 Confirmare Plată</h1>
+    </div>
+    <div class="content">
+        <h2>Salut, {{fullName}}!</h2>
+        <p>Plata ta a fost procesată cu succes.</p>
+        
+        <div class="amount">{{amount}} RON</div>
+
+        <div class="payment-details">
+            <h3>Detalii Tranzacție</h3>
+            <p><strong>ID Tranzacție:</strong> {{transactionId}}</p>
+            <p><strong>Beneficiar:</strong> {{recipientName}}</p>
+            <p><strong>Proiect:</strong> {{projectTitle}}</p>
+            <p><strong>Data:</strong> {{paymentDate}}</p>
+        </div>
+
+        <p>Plata a fost transferată în portofelul meșterului. Poți urmări statusul plății în secțiunea de plăți.</p>
+
+        <center>
+            <a href="{{viewPaymentUrl}}" class="button">Vezi Detalii Plată</a>
+        </center>
+
+        <p><small>Pentru asistență, contactează-ne la support@mesteri.ro</small></p>
+    </div>
+    <div class="footer">
+        <p>© 2024 Mesteri Platform. Toate drepturile rezervate.</p>
+        <p>
+            <a href="https://mesteri.ro">Site Web</a> |
+            <a href="{{unsubscribeUrl}}">Dezabonare</a>
+        </p>
+    </div>
+</body>
+</html>

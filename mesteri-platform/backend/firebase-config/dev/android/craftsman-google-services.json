@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "738937944088",
+    "project_id": "trueworkers-dev",
+    "storage_bucket": "trueworkers-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:738937944088:android:a866b786e8465bfe76eb6d",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.client"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "738937944088-hm421mrmns1770k6rncgu6l0j6o6khl0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkY5A9N5e6T9c70R0w-bAzNvhusGovy08"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "738937944088-hm421mrmns1770k6rncgu6l0j6o6khl0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "738937944088-1si9m0m19e4vr60uvavjfpugfc7npd6b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ro.trueworkers.client"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:738937944088:android:83a5dd7b6a32417a76eb6d",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.craftsman"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "738937944088-hm421mrmns1770k6rncgu6l0j6o6khl0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkY5A9N5e6T9c70R0w-bAzNvhusGovy08"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "738937944088-hm421mrmns1770k6rncgu6l0j6o6khl0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "738937944088-1si9m0m19e4vr60uvavjfpugfc7npd6b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ro.trueworkers.client"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

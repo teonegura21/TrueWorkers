@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "619841542389",
+    "project_id": "trueworkers-staging",
+    "storage_bucket": "trueworkers-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619841542389:android:04a5eec5e42adc1c758dbc",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.client"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "619841542389-7o0t7p7nscamqecv4u96oqa5nnm146tl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCx-Vb_WEjuQnZoSI9WQLZsMV_S2klFgic"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "619841542389-7o0t7p7nscamqecv4u96oqa5nnm146tl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619841542389:android:07a8ff6281e7c571758dbc",
+        "android_client_info": {
+          "package_name": "ro.trueworkers.craftsman"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "619841542389-7o0t7p7nscamqecv4u96oqa5nnm146tl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCx-Vb_WEjuQnZoSI9WQLZsMV_S2klFgic"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "619841542389-7o0t7p7nscamqecv4u96oqa5nnm146tl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

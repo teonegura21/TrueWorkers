@@ -1,8 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "mcp__gemini-cli__ask-gemini",
-      "Bash(npx prisma:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(cat:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
