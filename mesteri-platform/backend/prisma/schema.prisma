@@ -596,6 +596,9 @@ model Payment {
   master                 User          @relation("MasterPayments", fields: [masterId], references: [id])
   clientId               String
   client                 User          @relation("ClientPayments", fields: [clientId], references: [id])
+  stripePaymentIntentId  String?       @unique
+  stripeCustomerId       String?
+  stripePaymentMethodId  String?
   processedAt            DateTime?
   completedAt            DateTime?
   failedAt               DateTime?

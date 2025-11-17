@@ -45,6 +45,7 @@ export class StripeService {
         masterId: metadata.craftsmanId,
         clientId: metadata.clientId,
         projectId: metadata.projectId,
+        stripePaymentIntentId: paymentIntent.id,
         description: `Payment for project ${metadata.projectId}`,
       },
     });
@@ -194,42 +195,46 @@ export class StripeService {
   }
 
   private async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
-    // TODO: Add stripePaymentIntentId field to Payment model
-    // const payment = await this.prisma.payment.findFirst({
-    //   where: {
-    //     stripePaymentIntentId: paymentIntent.id,
-    //   },
-    // });
+    const payment = await this.prisma.payment.findUnique({
+      where: {
+        stripePaymentIntentId: paymentIntent.id,
+      },
+    });
 
-    // if (payment) {
-    //   await this.prisma.payment.update({
-    //     where: { id: payment.id },
-    //     data: {
-    //       status: PaymentStatus.PROCESSING,
-    //       processedAt: new Date(),
-    //     },
-    //   });
-    // }
+    if (payment) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.PROCESSING,
+          processedAt: new Date(),
+        },
+      });
+      console.log(`Payment ${payment.id} marked as PROCESSING via webhook`);
+    } else {
+      console.warn(`Payment not found for Stripe PaymentIntent: ${paymentIntent.id}`);
+    }
   }
 
   private async handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
-    // TODO: Add stripePaymentIntentId field to Payment model
-    // const payment = await this.prisma.payment.findFirst({
-    //   where: {
-    //     stripePaymentIntentId: paymentIntent.id,
-    //   },
-    // });
+    const payment = await this.prisma.payment.findUnique({
+      where: {
+        stripePaymentIntentId: paymentIntent.id,
+      },
+    });
 
-    // if (payment) {
-    //   await this.prisma.payment.update({
-    //     where: { id: payment.id },
-    //     data: {
-    //       status: PaymentStatus.FAILED,
-    //       failedAt: new Date(),
-    //       failureReason: paymentIntent.last_payment_error?.message || 'Payment failed',
-    //     },
-    //   });
-    // }
+    if (payment) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failedAt: new Date(),
+          failureReason: paymentIntent.last_payment_error?.message || 'Payment failed',
+        },
+      });
+      console.log(`Payment ${payment.id} marked as FAILED via webhook`);
+    } else {
+      console.warn(`Payment not found for Stripe PaymentIntent: ${paymentIntent.id}`);
+    }
   }
 
   private async handleRefund(charge: Stripe.Charge) {
