@@ -1,8 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
-import { Project, Milestone, Job, User, ProjectStatus } from '@prisma/client';
+import { Project, Milestone, Job, User, ProjectStatus, Prisma } from '@prisma/client';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { CreateMilestoneDto } from './dto/create-milestone.dto';
+import { UpdateMilestoneDto } from './dto/update-milestone.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 type ProjectWithRelations = Project & {
   job: Job | null;
@@ -206,7 +209,7 @@ export class ProjectsService {
     return this.mapProject(projectWithConversation);
   }
 
-  async update(id: string, updateData: any) {
+  async update(id: string, updateData: UpdateProjectDto) {
     const project = await this.prisma.project.update({
       where: { id },
       data: { ...updateData, updatedAt: new Date() },
@@ -260,13 +263,17 @@ export class ProjectsService {
     };
   }
 
-  async addMilestone(projectId: string, milestoneData: any) {
+  async addMilestone(projectId: string, milestoneData: CreateMilestoneDto) {
     await this.fetchProject({ id: projectId });
     const newMilestone = await this.prisma.milestone.create({
       data: {
         projectId,
-        ...milestoneData,
-        status: milestoneData.status ?? 'pending',
+        title: milestoneData.title,
+        description: milestoneData.description,
+        estimatedCost: milestoneData.estimatedCost,
+        estimatedEndDate: new Date(milestoneData.estimatedEndDate),
+        order: milestoneData.order ?? 1,
+        status: 'pending',
       },
     });
     return {
@@ -276,14 +283,22 @@ export class ProjectsService {
     };
   }
 
-  async updateMilestone(projectId: string, milestoneId: string, updateData: any) {
+  async updateMilestone(projectId: string, milestoneId: string, updateData: UpdateMilestoneDto) {
     const milestone = await this.prisma.milestone.findUnique({ where: { id: milestoneId } });
     if (!milestone || milestone.projectId !== projectId) {
       throw new NotFoundException(`Milestone with ID ${milestoneId} not found on project ${projectId}`);
     }
+
+    const updatePayload: Prisma.MilestoneUpdateInput = {};
+    if (updateData.title !== undefined) updatePayload.title = updateData.title;
+    if (updateData.description !== undefined) updatePayload.description = updateData.description;
+    if (updateData.estimatedCost !== undefined) updatePayload.estimatedCost = updateData.estimatedCost;
+    if (updateData.estimatedEndDate !== undefined) updatePayload.estimatedEndDate = new Date(updateData.estimatedEndDate);
+    if (updateData.order !== undefined) updatePayload.order = updateData.order;
+
     const updatedMilestone = await this.prisma.milestone.update({
       where: { id: milestoneId },
-      data: updateData,
+      data: updatePayload,
     });
     return {
       projectId,
@@ -329,7 +344,7 @@ export class ProjectsService {
   }
 
   async getProjectOverview(clientId?: string, craftsmanId?: string) {
-    const whereCondition: any = {};
+    const whereCondition: Prisma.ProjectWhereInput = {};
     if (clientId) whereCondition.clientId = clientId;
     if (craftsmanId) whereCondition.craftsman = { id: craftsmanId };
 

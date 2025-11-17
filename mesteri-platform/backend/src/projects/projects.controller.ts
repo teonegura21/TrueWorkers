@@ -15,6 +15,7 @@ import { ProjectsService } from './projects.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Controller('projects')
 export class ProjectsController {
@@ -50,7 +51,7 @@ export class ProjectsController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateData: any) {
+  async update(@Param('id') id: string, @Body() updateData: UpdateProjectDto) {
     return this.projectsService.update(id, updateData);
   }
 
