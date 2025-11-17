@@ -17,6 +17,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { MediaUploadService } from './media-upload.service';
 import { UploadMediaDto, GetMediaQueryDto, MediaCategory } from './dto';
 import { FirebaseAuthGuard } from '../guards/firebase-auth.guard';
+import { FirebaseAuthenticatedRequest } from '../notifications/interfaces/auth-request.interface';
 
 @Controller('media')
 @UseGuards(FirebaseAuthGuard)
@@ -28,7 +29,7 @@ export class MediaController {
   async uploadImage(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadMediaDto,
-    @Request() req: any,
+    @Request() req: FirebaseAuthenticatedRequest,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -48,7 +49,7 @@ export class MediaController {
   async uploadVideo(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadMediaDto,
-    @Request() req: any,
+    @Request() req: FirebaseAuthenticatedRequest,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -68,7 +69,7 @@ export class MediaController {
   async uploadBatch(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() dto: UploadMediaDto,
-    @Request() req: any,
+    @Request() req: FirebaseAuthenticatedRequest,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
@@ -94,7 +95,7 @@ export class MediaController {
   }
 
   @Delete(':id')
-  async deleteMedia(@Param('id') id: string, @Request() req: any) {
+  async deleteMedia(@Param('id') id: string, @Request() req: FirebaseAuthenticatedRequest) {
     const userId = req.user.uid;
     return this.mediaUploadService.deleteFile(id, userId);
   }

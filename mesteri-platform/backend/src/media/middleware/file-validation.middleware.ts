@@ -110,7 +110,7 @@ export class FileValidationMiddleware implements NestMiddleware {
     files.forEach((file, index) => {
       try {
         this.validateSingleFile(file);
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (error.response?.errors) {
           errors.push(
             `File ${index + 1} (${file.originalname}): ${error.response.errors.join(', ')}`,

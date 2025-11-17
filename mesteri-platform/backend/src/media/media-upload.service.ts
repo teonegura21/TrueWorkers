@@ -233,7 +233,7 @@ export class MediaUploadService {
           ? await this.uploadImage(file, userId, category, entityId)
           : await this.uploadVideo(file, userId, category, entityId);
         results.push(result);
-      } catch (error: any) {
+      } catch (error: unknown) {
         failed.push({
           fileName: file.originalname,
           error: error.message,
