@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/services/payment_service.dart';
 
 // Enhanced Payment System Models
 class PaymentProfile {
@@ -89,58 +91,6 @@ class PaymentProject {
   bool get isFullyPaid => paidAmount >= totalAmount;
 }
 
-// Mock data
-final List<PaymentCard> mockPaymentCards = [
-  PaymentCard(
-    id: 'card1',
-    cardNumber: '4111111111111111',
-    expiryDate: '12/26',
-    cardHolder: 'MARIA POPESCU',
-    cardType: 'VISA',
-    isDefault: true,
-  ),
-  PaymentCard(
-    id: 'card2',
-    cardNumber: '5555555555555555',
-    expiryDate: '08/25',
-    cardHolder: 'MARIA POPESCU',
-    cardType: 'MASTER',
-  ),
-];
-
-final List<PaymentTransaction> mockPayments = [
-  PaymentTransaction(
-    id: 'tx1',
-    description: 'Etapa 1: Demontare sistem vechi',
-    craftsmanName: 'Ion Popescu',
-    amount: 350.0,
-    date: DateTime.now().subtract(const Duration(days: 2)),
-    status: PaymentStatus.completed,
-    projectTitle: 'ReparaÈ›ie robinet bucÄƒtÄƒrie',
-    transactionId: 'TX-2024-000123',
-  ),
-  PaymentTransaction(
-    id: 'tx2',
-    description: 'Etapa 2: Instalare robinet nou',
-    craftsmanName: 'Ion Popescu',
-    amount: 450.0,
-    date: DateTime.now().subtract(const Duration(days: 1)),
-    status: PaymentStatus.processing,
-    projectTitle: 'ReparaÈ›ie robinet bucÄƒtÄƒrie',
-    transactionId: 'TX-2024-000124',
-  ),
-  PaymentTransaction(
-    id: 'tx3',
-    description: 'PlatÄƒ finalÄƒ',
-    craftsmanName: 'Ion Popescu',
-    amount: 250.0,
-    date: DateTime.now(),
-    status: PaymentStatus.pending,
-    projectTitle: 'ReparaÈ›ie robinet bucÄƒtÄƒrie',
-    transactionId: 'TX-2024-000125',
-  ),
-];
-
 class EnhancedPaymentsScreen extends StatefulWidget {
   const EnhancedPaymentsScreen({super.key});
 
@@ -151,17 +101,19 @@ class EnhancedPaymentsScreen extends StatefulWidget {
 class _EnhancedPaymentsScreenState extends State<EnhancedPaymentsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final PaymentService _paymentService = PaymentService();
+
   PaymentCard? _selectedCard;
+  List<dynamic> _payments = [];
+  List<PaymentCard> _paymentCards = []; // Empty for now - backend doesn't support payment methods yet
+  bool _isLoadingPayments = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-
-    // Select default card
-    setState(() {
-      _selectedCard = mockPaymentCards.firstWhere((card) => card.isDefault);
-    });
+    _loadPaymentHistory();
   }
 
   @override
@@ -623,15 +575,166 @@ class _EnhancedPaymentsScreenState extends State<EnhancedPaymentsScreen>
   }
 
   Widget _buildHistoryTab() {
+    if (_isLoadingPayments) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(_error!, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadPaymentHistory,
+              child: const Text('Încearcă din nou'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_payments.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Nu există plăți încă',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _refreshPaymentHistory,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: mockPayments.length,
-        itemBuilder: (context, index) =>
-            _buildPaymentHistoryItem(mockPayments[index]),
+        itemCount: _payments.length,
+        itemBuilder: (context, index) {
+          final payment = _payments[index];
+          // Convert API payment data to PaymentTransaction for display
+          return _buildPaymentHistoryItemFromData(payment);
+        },
       ),
     );
+  }
+
+  Widget _buildPaymentHistoryItemFromData(Map<String, dynamic> payment) {
+    // Parse payment data from API
+    final description = payment['description'] ?? 'Plată';
+    final amount = (payment['amount'] ?? 0.0).toDouble();
+    final status = _parsePaymentStatus(payment['status']);
+    final date = payment['createdAt'] != null
+      ? DateTime.tryParse(payment['createdAt'].toString()) ?? DateTime.now()
+      : DateTime.now();
+    final transactionId = payment['id'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.outlineColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getPaymentStatusColor(status).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _getPaymentStatusText(status),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _getPaymentStatusColor(status),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                transactionId,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.onSurfaceSecondary,
+                ),
+              ),
+              Text(
+                '${amount.toStringAsFixed(2)} RON',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDate(date),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.onSurfaceSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  PaymentStatus _parsePaymentStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return PaymentStatus.pending;
+      case 'processing':
+        return PaymentStatus.processing;
+      case 'completed':
+        return PaymentStatus.completed;
+      case 'failed':
+        return PaymentStatus.failed;
+      case 'cancelled':
+        return PaymentStatus.cancelled;
+      default:
+        return PaymentStatus.pending;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildPaymentHistoryItem(PaymentTransaction transaction) {
@@ -754,12 +857,31 @@ class _EnhancedPaymentsScreenState extends State<EnhancedPaymentsScreen>
         ),
 
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: mockPaymentCards.length,
-            itemBuilder: (context, index) =>
-                _buildCardItem(mockPaymentCards[index]),
-          ),
+          child: _paymentCards.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.credit_card_outlined, size: 64, color: Colors.grey.shade400),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Nu ai carduri salvate',
+                      style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Adaugă un card pentru plăți rapide',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _paymentCards.length,
+                itemBuilder: (context, index) =>
+                    _buildCardItem(_paymentCards[index]),
+              ),
         ),
 
         Padding(
@@ -1120,9 +1242,41 @@ class _EnhancedPaymentsScreenState extends State<EnhancedPaymentsScreen>
     });
   }
 
+  Future<void> _loadPaymentHistory() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _error = 'Utilizator neautentificat';
+        _isLoadingPayments = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingPayments = true;
+      _error = null;
+    });
+
+    try {
+      final payments = await _paymentService.getPaymentHistory(user.uid);
+      if (mounted) {
+        setState(() {
+          _payments = payments;
+          _isLoadingPayments = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+          _isLoadingPayments = false;
+        });
+      }
+    }
+  }
+
   Future<void> _refreshPaymentHistory() async {
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {});
+    await _loadPaymentHistory();
   }
 }
 
