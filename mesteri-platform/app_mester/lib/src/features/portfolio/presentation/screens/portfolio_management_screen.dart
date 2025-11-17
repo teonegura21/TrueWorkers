@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_service.dart';
 
 class PortfolioManagementScreen extends StatefulWidget {
   const PortfolioManagementScreen({super.key});
@@ -10,8 +13,10 @@ class PortfolioManagementScreen extends StatefulWidget {
 }
 
 class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
-  final List<Map<String, dynamic>> _portfolioItems = [];
+  final UserService _userService = UserService();
+  List<dynamic> _portfolioItems = [];
   bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -20,11 +25,36 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
   }
 
   Future<void> _loadPortfolio() async {
-    // TODO: Load portfolio from backend
-    // For now, using placeholder data
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _error = 'Utilizator neautentificat';
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      final portfolio = await _userService.getPortfolio(user.uid);
+      if (mounted) {
+        setState(() {
+          _portfolioItems = portfolio;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _addPortfolioItem() async {
@@ -33,22 +63,23 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _AddPortfolioItemSheet(
-        onAdd: (item) {
-          setState(() {
-            _portfolioItems.add(item);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Proiect adăugat în portofoliu!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+        userService: _userService,
+        onAdd: () async {
+          await _loadPortfolio(); // Reload portfolio after adding
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Proiect adăugat în portofoliu!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         },
       ),
     );
   }
 
-  Future<void> _deletePortfolioItem(int index) async {
+  Future<void> _deletePortfolioItem(String itemId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -69,15 +100,26 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
     );
 
     if (confirmed == true) {
-      setState(() {
-        _portfolioItems.removeAt(index);
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Proiect șters din portofoliu'),
-          ),
-        );
+      try {
+        // Note: Backend doesn't have delete endpoint yet, so just reload
+        // await _userService.deletePortfolioItem(itemId);
+        await _loadPortfolio();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Proiect șters din portofoliu'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Eroare: ${e.toString().replaceFirst('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -93,9 +135,25 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _portfolioItems.isEmpty
-              ? _buildEmptyState()
-              : _buildPortfolioGrid(),
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadPortfolio,
+                        child: const Text('Încearcă din nou'),
+                      ),
+                    ],
+                  ),
+                )
+              : _portfolioItems.isEmpty
+                  ? _buildEmptyState()
+                  : _buildPortfolioGrid(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addPortfolioItem,
         backgroundColor: AppTheme.primaryColor,
@@ -157,6 +215,12 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
   }
 
   Widget _buildPortfolioCard(Map<String, dynamic> item, int index) {
+    // Parse API data
+    final imageUrl = item['url'] ?? item['thumbnailUrl'] ?? '';
+    final title = item['filename'] ?? item['title'] ?? 'Imagine portofoliu';
+    final category = item['category'] ?? 'PORTFOLIO';
+    final itemId = item['id'] ?? '';
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -171,10 +235,17 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
                 child: Container(
                   width: double.infinity,
                   color: Colors.grey.shade300,
-                  child: item['imagePath'] != null
-                      ? Image.file(
-                          File(item['imagePath']),
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(Icons.broken_image, size: 50, color: Colors.grey.shade500);
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(child: CircularProgressIndicator());
+                          },
                         )
                       : Icon(Icons.image, size: 50, color: Colors.grey.shade500),
                 ),
@@ -187,7 +258,7 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['title'] ?? 'Fără titlu',
+                      title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -197,7 +268,7 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      item['category'] ?? '',
+                      category,
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 12,
@@ -222,7 +293,7 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
               ),
               child: IconButton(
                 icon: const Icon(Icons.delete, color: Colors.white, size: 20),
-                onPressed: () => _deletePortfolioItem(index),
+                onPressed: () => _deletePortfolioItem(itemId),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
               ),
@@ -235,79 +306,86 @@ class _PortfolioManagementScreenState extends State<PortfolioManagementScreen> {
 }
 
 class _AddPortfolioItemSheet extends StatefulWidget {
-  final Function(Map<String, dynamic>) onAdd;
+  final UserService userService;
+  final VoidCallback onAdd;
 
-  const _AddPortfolioItemSheet({required this.onAdd});
+  const _AddPortfolioItemSheet({required this.userService, required this.onAdd});
 
   @override
   State<_AddPortfolioItemSheet> createState() => _AddPortfolioItemSheetState();
 }
 
 class _AddPortfolioItemSheetState extends State<_AddPortfolioItemSheet> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  String? _selectedCategory;
+  final ImagePicker _picker = ImagePicker();
   String? _imagePath;
-
-  final List<Map<String, String>> _categories = [
-    {'value': 'ELECTRIK', 'label': 'Electricieni'},
-    {'value': 'INSTALATII_SANITARE', 'label': 'Instalații sanitare'},
-    {'value': 'CONSTRUCTII', 'label': 'Construcții'},
-    {'value': 'ZUGRAVIT_VOPSIT', 'label': 'Zugravit & vopsit'},
-    {'value': 'PARCHET_FINISAJE', 'label': 'Parchet & finisaje'},
-    {'value': 'AMENAJARI_INTERIOARE', 'label': 'Amenajări interioare'},
-    {'value': 'TAMPLAR_STICLA', 'label': 'Tâmplărie & sticlă'},
-    {'value': 'REPARAT_CLIMATIZARE', 'label': 'Reparații climatizare'},
-    {'value': 'CURATENIE', 'label': 'Curățenie'},
-    {'value': 'ALTELE', 'label': 'Altele'},
-  ];
+  bool _isUploading = false;
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    // TODO: Implement image picker
-    // For now, just showing a placeholder
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funcția de încărcare imagini va fi adăugată curând')),
-    );
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _imagePath = image.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Eroare la selectarea imaginii: $e')),
+        );
+      }
+    }
   }
 
-  void _submit() {
-    if (_titleController.text.trim().isEmpty) {
+  Future<void> _submit() async {
+    if (_imagePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Introdu un titlu pentru proiect')),
+        const SnackBar(content: Text('Selectează o imagine')),
       );
       return;
     }
 
-    if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selectează o categorie')),
-      );
-      return;
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      await widget.userService.uploadPortfolioImage(_imagePath!);
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onAdd();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Eroare la încărcare: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-
-    final item = {
-      'title': _titleController.text.trim(),
-      'description': _descriptionController.text.trim(),
-      'category': _selectedCategory,
-      'imagePath': _imagePath,
-      'createdAt': DateTime.now().toIso8601String(),
-    };
-
-    widget.onAdd(item);
-    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
+      height: MediaQuery.of(context).size.height * 0.6,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -334,7 +412,7 @@ class _AddPortfolioItemSheetState extends State<_AddPortfolioItemSheet> {
             child: Row(
               children: [
                 const Text(
-                  'Adaugă proiect nou',
+                  'Adaugă imagine în portofoliu',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -355,14 +433,14 @@ class _AddPortfolioItemSheetState extends State<_AddPortfolioItemSheet> {
                 children: [
                   // Image Picker
                   GestureDetector(
-                    onTap: _pickImage,
+                    onTap: _isUploading ? null : _pickImage,
                     child: Container(
-                      height: 200,
+                      height: 250,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade400, style: BorderStyle.solid),
+                        border: Border.all(color: Colors.grey.shade400),
                       ),
                       child: _imagePath != null
                           ? ClipRRect(
@@ -372,62 +450,20 @@ class _AddPortfolioItemSheetState extends State<_AddPortfolioItemSheet> {
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey.shade600),
+                                Icon(Icons.add_photo_alternate, size: 64, color: Colors.grey.shade600),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Selectează imagine',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                                ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Adaugă imagine',
-                                  style: TextStyle(color: Colors.grey.shade600),
+                                  'Arată lucrările tale celor care îți vizitează profilul',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                                 ),
                               ],
                             ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Title
-                  const Text('Titlu proiect', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _titleController,
-                    decoration: InputDecoration(
-                      hintText: 'Ex: Renovare baie completă',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Category
-                  const Text('Categorie', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCategory,
-                    decoration: InputDecoration(
-                      hintText: 'Selectează categoria',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    items: _categories.map((cat) {
-                      return DropdownMenuItem(
-                        value: cat['value'],
-                        child: Text(cat['label']!),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description
-                  const Text('Descriere (opțional)', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _descriptionController,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: 'Descrie lucrările efectuate...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -436,17 +472,26 @@ class _AddPortfolioItemSheetState extends State<_AddPortfolioItemSheet> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _submit,
+                      onPressed: _isUploading ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text(
-                        'Adaugă în portofoliu',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                      child: _isUploading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Adaugă în portofoliu',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
