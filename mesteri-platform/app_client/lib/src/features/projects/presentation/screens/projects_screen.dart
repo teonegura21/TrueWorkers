@@ -3,6 +3,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../widgets/project_card.dart';
 import 'package:app_client/src/core/services/projects_api_service.dart';
 import 'package:app_client/src/core/models/api_models.dart' as api;
+import 'package:app_client/src/core/errors/error_type.dart';
+import 'package:app_client/src/core/widgets/error_view.dart';
+import 'package:app_client/src/core/widgets/skeleton_loading.dart';
+import 'package:app_client/src/core/utils/accessibility_utils.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -19,6 +23,7 @@ class _ProjectsScreenState extends State<ProjectsScreen>
   List<Map<String, dynamic>> _activeProjects = [];
   List<Map<String, dynamic>> _completedProjects = [];
   bool _loading = true;
+  AppError? _error;
 
   @override
   void initState() {
@@ -167,13 +172,9 @@ class _ProjectsScreenState extends State<ProjectsScreen>
               controller: _tabController,
               children: [
                 // Active Projects
-                _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildProjectsList(_activeProjects),
+                _buildTabContent(_activeProjects, 'Active'),
                 // Completed Projects
-                _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildProjectsList(_completedProjects),
+                _buildTabContent(_completedProjects, 'Finalizate'),
                 // Disputed Projects (placeholder)
                 _buildEmptyState('Contestații'),
               ],
@@ -197,23 +198,67 @@ class _ProjectsScreenState extends State<ProjectsScreen>
     );
   }
 
-  Widget _buildProjectsList(List<Map<String, dynamic>> projects) {
-    if (projects.isEmpty) {
-      return _buildEmptyState(
-        _tabController.index == 0 ? 'Active' : 'Finalizate',
+  Widget _buildTabContent(List<Map<String, dynamic>> projects, String tabTitle) {
+    // Show error state with retry option
+    if (_error != null && !_loading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _fetchProjects : null,
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: projects.length,
-      itemBuilder: (context, index) {
-        final project = projects[index];
-        return ProjectCard(
-          project: project,
-          onTap: () => _onProjectTap(context, project),
-        );
-      },
+    // Show skeleton loading
+    if (_loading) {
+      return _buildLoadingState();
+    }
+
+    // Show project list or empty state
+    return _buildProjectsList(projects, tabTitle);
+  }
+
+  Widget _buildLoadingState() {
+    return Semantics(
+      label: 'Se încarcă proiectele',
+      child: ListView.builder(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: EdgeInsets.only(bottom: AppSpacing.lg),
+            child: const ProjectCardSkeleton(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProjectsList(List<Map<String, dynamic>> projects, String tabTitle) {
+    if (projects.isEmpty) {
+      return _buildEmptyState(tabTitle);
+    }
+
+    return Semantics(
+      label: '$tabTitle, ${projects.length} proiecte',
+      child: RefreshIndicator(
+        onRefresh: _fetchProjects,
+        child: ListView.builder(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          itemCount: projects.length,
+          itemBuilder: (context, index) {
+            final project = projects[index];
+            return AccessibilityUtils.ensureTouchTarget(
+              onTap: () {
+                context.announce('Ai selectat proiectul: ${project['job']?['title'] ?? 'Fără titlu'}');
+                _onProjectTap(context, project);
+              },
+              child: ProjectCard(
+                project: project,
+                onTap: () => _onProjectTap(context, project),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -305,9 +350,16 @@ class _ProjectsScreenState extends State<ProjectsScreen>
   }
 
   Future<void> _fetchProjects() async {
-    setState(() => _loading = true);
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
       final projects = await _projectsService.getProjects(limit: 100);
+      if (!mounted) return;
+
       final mapped = projects.map(_projectToCardMap).toList();
       final active = mapped
           .where((p) => (p['status'] as String) == 'ACTIVE')
@@ -315,19 +367,32 @@ class _ProjectsScreenState extends State<ProjectsScreen>
       final completed = mapped
           .where((p) => (p['status'] as String) == 'COMPLETED')
           .toList();
-      if (!mounted) return;
+
       setState(() {
         _activeProjects = active;
         _completedProjects = completed;
         _activeProjectsCount = active.length;
         _loading = false;
+        _error = null;
       });
+
+      // Announce success to screen readers
+      if (mounted) {
+        context.announce('Proiecte încărcate cu succes: ${active.length} active, ${completed.length} finalizate');
+      }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Eroare la încărcarea proiectelor: $e')),
-      );
+
+      final appError = AppError.fromException(e);
+      setState(() {
+        _loading = false;
+        _error = appError;
+      });
+
+      // Announce error to screen readers
+      if (mounted) {
+        context.announce('Eroare la încărcarea proiectelor');
+      }
     }
   }
 

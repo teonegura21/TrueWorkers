@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
+import 'package:app_mester/src/core/errors/error_type.dart';
+import 'package:app_mester/src/core/widgets/error_view.dart';
+import 'package:app_mester/src/core/widgets/skeleton_loading.dart';
+import 'package:app_mester/src/core/utils/accessibility_utils.dart';
 
 enum ProjectsView {
   all,
@@ -183,6 +187,8 @@ class _ProjectsScreenState extends State<ProjectsScreen>
     with SingleTickerProviderStateMixin {
   ProjectsView _selectedView = ProjectsView.all;
   late TabController _tabController;
+  bool _isLoading = false;
+  AppError? _error;
 
   @override
   void initState() {
@@ -327,14 +333,56 @@ class _ProjectsScreenState extends State<ProjectsScreen>
   }
 
   Widget _buildProjectsList(List<ActiveProject> projects) {
-    return RefreshIndicator(
-      onRefresh: _refreshProjects,
+    // Show error state with retry option
+    if (_error != null && !_isLoading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _refreshProjects : null,
+      );
+    }
+
+    // Show skeleton loading
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    // Show project list with accessibility
+    return Semantics(
+      label: 'Proiecte, ${projects.length} total',
+      child: RefreshIndicator(
+        onRefresh: _refreshProjects,
+        child: ListView.builder(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          itemCount: projects.length,
+          itemBuilder: (context, index) {
+            final project = projects[index];
+            return AccessibilityUtils.ensureTouchTarget(
+              onTap: () {
+                context.announce('Ai selectat proiectul: ${project.projectTitle}');
+                _showProjectDetails(project);
+              },
+              child: _buildProjectCard(project),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Semantics(
+      label: 'Se încarcă proiectele',
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: projects.length,
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        itemCount: 5,
         itemBuilder: (context, index) {
-          final project = projects[index];
-          return _buildProjectCard(project);
+          return Container(
+            margin: EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xs,
+            ),
+            child: const ProjectCardSkeleton(),
+          );
         },
       ),
     );
@@ -754,9 +802,42 @@ class _ProjectsScreenState extends State<ProjectsScreen>
   }
 
   Future<void> _refreshProjects() async {
-    // TODO: Implement refresh logic
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {});
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // TODO: Replace with real API call when backend is ready
+      // For now, simulate loading
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = null;
+      });
+
+      // Announce success to screen readers
+      if (mounted) {
+        final summary = getProjectsSummary();
+        context.announce('Proiecte actualizate: ${summary.active} active, ${summary.completed} completate');
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      final appError = AppError.fromException(e);
+      setState(() {
+        _isLoading = false;
+        _error = appError;
+      });
+
+      // Announce error to screen readers
+      if (mounted) {
+        context.announce('Eroare la actualizarea proiectelor');
+      }
+    }
   }
 }
 
