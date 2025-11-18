@@ -5,6 +5,10 @@ import '../../../../core/services/wallet_service.dart';
 import '../../../jobs/presentation/screens/jobs_screen.dart';
 import '../../../offers/presentation/screens/my_offers_screen.dart';
 import '../../../portfolio/presentation/screens/portfolio_management_screen.dart';
+import 'package:app_mester/src/core/errors/error_type.dart';
+import 'package:app_mester/src/core/widgets/error_view.dart';
+import 'package:app_mester/src/core/widgets/skeleton_loading.dart';
+import 'package:app_mester/src/core/utils/accessibility_utils.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final int _unreadMessages = 0;
   final int _pendingOffers = 0;
   bool _isLoading = true;
+  AppError? _error;
 
   List<Map<String, dynamic>> _monthlyEarnings = [];
   final List<Map<String, dynamic>> _activeProjectJobs = [];
@@ -36,11 +41,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadDashboardData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (!mounted) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
       final stats = await _walletService.getWalletStats(user.uid);
+      if (!mounted) return;
 
       setState(() {
         _totalEarnings = (stats['totalEarnings'] as num?)?.toDouble() ?? 0.0;
@@ -51,9 +61,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             (stats['monthlyEarnings'] as List?)?.cast<Map<String, dynamic>>() ??
             [];
         _isLoading = false;
+        _error = null;
       });
+
+      // Announce success to screen readers
+      if (mounted) {
+        context.announce('Dashboard actualizat: $_activeProjects proiecte active, ${_totalEarnings.toStringAsFixed(0)} RON câștiguri');
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (!mounted) return;
+
+      final appError = AppError.fromException(e);
+      setState(() {
+        _isLoading = false;
+        _error = appError;
+      });
+
+      // Announce error to screen readers
+      if (mounted) {
+        context.announce('Eroare la încărcarea dashboard-ului');
+      }
     }
   }
 
@@ -103,43 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
 
-      body: RefreshIndicator(
-        onRefresh: _refreshDashboard,
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome Section
-                _buildWelcomeSection(),
-
-                const SizedBox(height: 24),
-
-                // Key Metrics Cards
-                _buildKeyMetrics(),
-
-                const SizedBox(height: 24),
-
-                // Earnings Chart
-                _buildEarningsChart(),
-
-                const SizedBox(height: 24),
-
-                // Active Projects
-                _buildActiveProjects(),
-
-                const SizedBox(height: 24),
-
-                // Quick Actions
-                _buildQuickActions(),
-
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
-      ),
+      body: _buildBody(),
 
       bottomNavigationBar: _buildBottomNavigation(),
 
@@ -151,6 +142,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: AppTheme.primaryColor,
         tooltip: 'Caută noi proiecte',
         child: const Icon(Icons.work_outline),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    // Show error state with retry option
+    if (_error != null && !_isLoading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _loadDashboardData : null,
+      );
+    }
+
+    // Show skeleton loading
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    // Show dashboard content
+    return RefreshIndicator(
+      onRefresh: _refreshDashboard,
+      child: SingleChildScrollView(
+        child: Semantics(
+          label: 'Dashboard meșter',
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome Section
+                _buildWelcomeSection(),
+                SizedBox(height: AppSpacing.xl),
+
+                // Key Metrics Cards
+                _buildKeyMetrics(),
+                SizedBox(height: AppSpacing.xl),
+
+                // Earnings Chart
+                _buildEarningsChart(),
+                SizedBox(height: AppSpacing.xl),
+
+                // Active Projects
+                _buildActiveProjects(),
+                SizedBox(height: AppSpacing.xl),
+
+                // Quick Actions
+                _buildQuickActions(),
+                SizedBox(height: AppSpacing.xl),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Semantics(
+      label: 'Se încarcă dashboard-ul',
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome skeleton
+              Container(
+                height: 140,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Skeleton(height: 140, width: double.infinity),
+              ),
+              SizedBox(height: AppSpacing.xl),
+
+              // Metrics skeletons
+              Row(
+                children: [
+                  Expanded(child: const MetricsCardSkeleton()),
+                  SizedBox(width: AppSpacing.md),
+                  Expanded(child: const MetricsCardSkeleton()),
+                ],
+              ),
+              SizedBox(height: AppSpacing.xl),
+
+              // Chart skeleton
+              Container(
+                height: 250,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Skeleton(height: 250, width: double.infinity),
+              ),
+              SizedBox(height: AppSpacing.xl),
+
+              // Projects skeleton
+              const ProjectCardSkeleton(),
+              SizedBox(height: AppSpacing.md),
+              const ProjectCardSkeleton(),
+            ],
+          ),
+        ),
       ),
     );
   }
