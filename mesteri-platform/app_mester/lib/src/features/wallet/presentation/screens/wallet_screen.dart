@@ -3,6 +3,10 @@ import 'package:app_mester/src/core/theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/services/wallet_service.dart';
 import '../../../wallet/presentation/screens/wallet_withdrawal_screen.dart';
+import 'package:app_mester/src/core/errors/error_type.dart';
+import 'package:app_mester/src/core/widgets/error_view.dart';
+import 'package:app_mester/src/core/widgets/skeleton_loading.dart';
+import 'package:app_mester/src/core/utils/accessibility_utils.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -17,7 +21,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Map<String, dynamic>? _walletData;
   List<dynamic> _transactions = [];
   bool _isLoading = true;
-  String? _errorMessage;
+  AppError? _error;
   String? _currentUserId;
 
   @override
@@ -29,110 +33,190 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _loadWalletData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = 'Trebuie să fii autentificat';
+        _error = AppError(
+          type: ErrorType.authentication,
+          message: 'Trebuie să fii autentificat pentru a accesa portofelul',
+          canRetry: false,
+        );
         _isLoading = false;
       });
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _currentUserId = user.uid;
       _isLoading = true;
-      _errorMessage = null;
+      _error = null;
     });
 
     try {
       final wallet = await _walletService.getWallet(user.uid);
       final earnings = await _walletService.getEarnings(user.uid);
 
+      if (!mounted) return;
       setState(() {
         _walletData = wallet;
         _transactions = earnings;
         _isLoading = false;
+        _error = null;
       });
+
+      // Announce success to screen readers
+      if (mounted) {
+        final balance = wallet?['balance'] as num? ?? 0;
+        context.announce('Portofel încărcat: ${balance.toStringAsFixed(0)} RON disponibili');
+      }
     } catch (e) {
+      if (!mounted) return;
+      final appError = AppError.fromException(e);
       setState(() {
-        _errorMessage = 'Eroare la încărcarea datelor: ${e.toString()}';
+        _error = appError;
         _isLoading = false;
       });
+
+      // Announce error to screen readers
+      if (mounted) {
+        context.announce('Eroare la încărcarea portofelului');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Portofel'),
-          backgroundColor: AppTheme.surfaceColor,
-          elevation: 0,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Portofel'),
-          backgroundColor: AppTheme.surfaceColor,
-          elevation: 0,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(_errorMessage!),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadWalletData,
-                child: const Text('Încearcă din nou'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Portofel'),
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: _showWalletOptions,
-          ),
+          if (!_isLoading && _error == null)
+            AccessibilityUtils.accessibleIconButton(
+              icon: Icons.more_vert,
+              label: 'Opțiuni portofel',
+              onPressed: _showWalletOptions,
+            ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadWalletData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    // Show error state with retry option
+    if (_error != null && !_isLoading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _loadWalletData : null,
+      );
+    }
+
+    // Show skeleton loading
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    // Show wallet content
+    return RefreshIndicator(
+      onRefresh: _loadWalletData,
+      child: SingleChildScrollView(
+        child: Semantics(
+          label: 'Portofel meșter',
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Wallet balance card
+                _buildBalanceCard(),
+                SizedBox(height: AppSpacing.xxl),
+
+                // Quick actions
+                _buildQuickActions(),
+                SizedBox(height: AppSpacing.xxl),
+
+                // Statistics
+                _buildStatisticsSection(),
+                SizedBox(height: AppSpacing.xxl),
+
+                // Recent transactions
+                _buildTransactionsSection(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Semantics(
+      label: 'Se încarcă portofelul',
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Wallet balance card
-              _buildBalanceCard(),
+              // Balance card skeleton
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Skeleton(height: 180, width: double.infinity),
+              ),
+              SizedBox(height: AppSpacing.xxl),
 
-              const SizedBox(height: 32),
+              // Quick actions skeletons
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 100,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Skeleton(height: 100, width: double.infinity),
+                    ),
+                  ),
+                  SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Container(
+                      height: 100,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Skeleton(height: 100, width: double.infinity),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: AppSpacing.xxl),
 
-              // Quick actions
-              _buildQuickActions(),
+              // Statistics skeleton
+              Container(
+                height: 150,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Skeleton(height: 150, width: double.infinity),
+              ),
+              SizedBox(height: AppSpacing.xxl),
 
-              const SizedBox(height: 32),
-
-              // Statistics
-              _buildStatisticsSection(),
-
-              const SizedBox(height: 32),
-
-              // Recent transactions
-              _buildTransactionsSection(),
+              // Transactions skeletons
+              const Text(
+                'Tranzacții recente',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: AppSpacing.lg),
+              const TransactionCardSkeleton(),
+              SizedBox(height: AppSpacing.md),
+              const TransactionCardSkeleton(),
+              SizedBox(height: AppSpacing.md),
+              const TransactionCardSkeleton(),
             ],
           ),
         ),

@@ -2,6 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/services/offers_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:app_mester/src/core/errors/error_type.dart';
+import 'package:app_mester/src/core/widgets/error_view.dart';
+import 'package:app_mester/src/core/widgets/skeleton_loading.dart';
+import 'package:app_mester/src/core/utils/accessibility_utils.dart';
 
 enum OffersView { all, active, accepted, rejected }
 
@@ -147,7 +151,7 @@ class _MyOffersScreenState extends State<MyOffersScreen> {
 
   List<dynamic> _offers = [];
   bool _isLoading = true;
-  String? _errorMessage;
+  AppError? _error;
 
   @override
   void initState() {
@@ -158,29 +162,49 @@ class _MyOffersScreenState extends State<MyOffersScreen> {
   Future<void> _loadMyOffers() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = 'Trebuie să fii autentificat';
+        _error = AppError(
+          type: ErrorType.authentication,
+          message: 'Trebuie să fii autentificat pentru a vedea ofertele',
+          canRetry: false,
+        );
         _isLoading = false;
       });
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _error = null;
     });
 
     try {
       final offers = await _offersService.getMyCraftsmanOffers(user.uid);
+      if (!mounted) return;
+
       setState(() {
         _offers = offers;
         _isLoading = false;
+        _error = null;
       });
+
+      if (mounted) {
+        context.announce('Oferte încărcate: ${offers.length} total');
+      }
     } catch (e) {
+      if (!mounted) return;
+
+      final appError = AppError.fromException(e);
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _error = appError;
         _isLoading = false;
       });
+
+      if (mounted) {
+        context.announce('Eroare la încărcarea ofertelor');
+      }
     }
   }
 
@@ -243,24 +267,27 @@ class _MyOffersScreenState extends State<MyOffersScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+    // Show error state
+    if (_error != null && !_isLoading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _loadMyOffers : null,
+      );
     }
 
-    if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(_errorMessage!, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadMyOffers,
-              child: const Text('Încearcă din nou'),
-            ),
-          ],
+    // Show skeleton loading
+    if (_isLoading) {
+      return Semantics(
+        label: 'Se încarcă ofertele',
+        child: ListView.builder(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          itemCount: 5,
+          itemBuilder: (context, index) {
+            return Container(
+              margin: EdgeInsets.only(bottom: AppSpacing.lg),
+              child: const ProjectCardSkeleton(), // Reuse for offer cards
+            );
+          },
         ),
       );
     }
