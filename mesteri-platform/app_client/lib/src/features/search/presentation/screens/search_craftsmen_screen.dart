@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/services/craftsmen_api_service.dart';
 import '../../../craftsmen/presentation/screens/craftsman_profile_screen.dart';
+import 'package:app_client/src/core/errors/error_type.dart';
+import 'package:app_client/src/core/widgets/error_view.dart';
+import 'package:app_client/src/core/widgets/skeleton_loading.dart';
+import 'package:app_client/src/core/utils/accessibility_utils.dart';
+import 'package:app_client/src/core/theme/app_theme.dart';
 
 class SearchCraftsmenScreen extends StatefulWidget {
   const SearchCraftsmenScreen({super.key});
@@ -13,7 +18,7 @@ class SearchCraftsmenScreen extends StatefulWidget {
 class _SearchCraftsmenScreenState extends State<SearchCraftsmenScreen> {
   final CraftsmenApiService _apiService = CraftsmenApiService();
   final TextEditingController _searchController = TextEditingController();
-  
+
   List<dynamic> _craftsmen = [];
   List<dynamic> _filteredCraftsmen = [];
   bool _isLoading = false;
@@ -21,6 +26,7 @@ class _SearchCraftsmenScreenState extends State<SearchCraftsmenScreen> {
   int _currentPage = 1;
   int _totalPages = 1;
   bool _isLoadingMore = false;
+  AppError? _error;
 
   // Filter options
   String? _selectedCity;
@@ -60,9 +66,13 @@ class _SearchCraftsmenScreenState extends State<SearchCraftsmenScreen> {
 
   Future<void> _loadCraftsmen() async {
     if (_isLoading) return;
-    
-    setState(() => _isLoading = true);
-    
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
       final result = await _apiService.searchCraftsmen(
         query: _searchController.text.isNotEmpty ? _searchController.text : null,
@@ -73,19 +83,32 @@ class _SearchCraftsmenScreenState extends State<SearchCraftsmenScreen> {
         page: _currentPage,
         limit: 20,
       );
-      
+
+      if (!mounted) return;
       setState(() {
         _craftsmen = result['craftsmen'] as List<dynamic>;
         _filteredCraftsmen = _craftsmen;
         _totalPages = result['totalPages'] as int;
         _isLoading = false;
+        _error = null;
       });
-    } catch (e) {
-      setState(() => _isLoading = false);
+
+      // Announce success to screen readers
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Eroare: $e')),
-        );
+        context.announce('Găsiți ${_filteredCraftsmen.length} meșteri');
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      final appError = AppError.fromException(e);
+      setState(() {
+        _isLoading = false;
+        _error = appError;
+      });
+
+      // Announce error to screen readers
+      if (mounted) {
+        context.announce('Eroare la căutarea meșterilor');
       }
     }
   }
@@ -144,9 +167,7 @@ class _SearchCraftsmenScreenState extends State<SearchCraftsmenScreen> {
           if (_showFilters) _buildFiltersPanel(),
           _buildResultsHeader(),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildResults(),
+            child: _buildContent(),
           ),
         ],
       ),
@@ -305,31 +326,93 @@ class _SearchCraftsmenScreenState extends State<SearchCraftsmenScreen> {
     );
   }
 
+  Widget _buildContent() {
+    // Show error state with retry option
+    if (_error != null && !_isLoading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _loadCraftsmen : null,
+      );
+    }
+
+    // Show skeleton loading
+    if (_isLoading && _craftsmen.isEmpty) {
+      return _buildLoadingState();
+    }
+
+    // Show results or empty state
+    return _buildResults();
+  }
+
+  Widget _buildLoadingState() {
+    return Semantics(
+      label: 'Se caută meșteri',
+      child: ListView.builder(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: EdgeInsets.only(bottom: AppSpacing.lg),
+            child: const CraftsmanCardSkeleton(),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildResults() {
     if (_filteredCraftsmen.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            const Text(
-              'Nu am găsit meșteri',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      return Semantics(
+        label: 'Nu au fost găsiți meșteri',
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.xxl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Nu am găsit meșteri',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: AppSpacing.sm),
+                const Text('Încearcă să modifici filtrele'),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text('Încearcă să modifici filtrele'),
-          ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _filteredCraftsmen.length,
-      itemBuilder: (context, index) {
-        return _buildCraftsmanCard(_filteredCraftsmen[index]);
-      },
+    return Semantics(
+      label: 'Listă meșteri, ${_filteredCraftsmen.length} găsiți',
+      child: RefreshIndicator(
+        onRefresh: _loadCraftsmen,
+        child: ListView.builder(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          itemCount: _filteredCraftsmen.length,
+          itemBuilder: (context, index) {
+            final craftsman = _filteredCraftsmen[index];
+            final craftsmanName = craftsman['fullName'] ?? 'Necunoscut';
+
+            return AccessibilityUtils.ensureTouchTarget(
+              onTap: () {
+                context.announce('Ai selectat meșterul: $craftsmanName');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CraftsmanProfileScreen(
+                      craftsmanId: craftsman['id'] ?? '',
+                    ),
+                  ),
+                );
+              },
+              child: _buildCraftsmanCard(craftsman),
+            );
+          },
+        ),
+      ),
     );
   }
 
