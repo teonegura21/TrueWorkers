@@ -7,6 +7,10 @@ import 'package:app_client/src/features/jobs/presentation/widgets/job_skeleton.d
 import 'package:app_client/src/features/jobs/presentation/widgets/empty_jobs_state.dart';
 import 'package:app_client/src/features/jobs/presentation/screens/post_job_screen.dart';
 import 'package:app_client/src/core/theme/app_theme.dart';
+import 'package:app_client/src/core/errors/error_type.dart';
+import 'package:app_client/src/core/widgets/error_view.dart';
+import 'package:app_client/src/core/widgets/skeleton_loading.dart';
+import 'package:app_client/src/core/utils/accessibility_utils.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -19,6 +23,7 @@ class _JobsScreenState extends State<JobsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = true;
+  AppError? _error;
   final JobsApiService _jobsService = JobsApiService();
   List<Job> _jobsOffers = [];
   List<Job> _jobsInProgress = [];
@@ -111,13 +116,18 @@ class _JobsScreenState extends State<JobsScreen>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add, color: Colors.white, size: 28),
+              AccessibilityUtils.accessibleIconButton(
+                icon: Icons.add,
+                label: 'Adaugă lucrare nouă',
+                tooltip: 'Apasă pentru a posta o lucrare nouă',
+                color: Colors.white,
+                size: 28,
                 onPressed: () async {
                   final result = await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const PostJobScreen()),
                   );
                   if (result == true && mounted) {
+                    context.announce('Lucrarea a fost postată cu succes');
                     await _fetchJobs();
                   }
                 },
@@ -160,51 +170,69 @@ class _JobsScreenState extends State<JobsScreen>
   }
 
   Widget _buildJobsTab(List<Job> jobs, String tabTitle) {
+    // Show error state with retry option
+    if (_error != null && !_isLoading) {
+      return ErrorView(
+        error: _error!,
+        onRetry: _error!.canRetry ? _fetchJobs : null,
+      );
+    }
+
+    // Show skeleton loading
     if (_isLoading) {
       return _buildLoadingState();
     }
 
+    // Show empty state
     if (jobs.isEmpty) {
       return _buildEmptyState(tabTitle);
     }
 
+    // Show job list
     return RefreshIndicator(
       onRefresh: _handleRefresh,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: jobs.length,
-        itemBuilder: (context, index) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            child: JobCard(
-              job: jobs[index],
-              onTap: () {
-                // Handle job card tap
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Ai selectat: ${jobs[index].title}'),
-                    backgroundColor: AppTheme.primaryColor,
-                  ),
-                );
-              },
-              onChanged: _fetchJobs,
-            ),
-          );
-        },
+      child: Semantics(
+        label: '$tabTitle, ${jobs.length} lucrări',
+        child: ListView.builder(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          itemCount: jobs.length,
+          itemBuilder: (context, index) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: JobCard(
+                job: jobs[index],
+                onTap: () {
+                  context.announce('Ai selectat lucrarea: ${jobs[index].title}');
+                  // Navigate to job details
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ai selectat: ${jobs[index].title}'),
+                      backgroundColor: MesteriColors.primary,
+                    ),
+                  );
+                },
+                onChanged: _fetchJobs,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: 3,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: const JobSkeleton(),
-        );
-      },
+    return Semantics(
+      label: 'Se încarcă lucrările',
+      child: ListView.builder(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: const JobCardSkeleton(),
+          );
+        },
+      ),
     );
   }
 
@@ -265,10 +293,15 @@ class _JobsScreenState extends State<JobsScreen>
 
   Future<void> _fetchJobs() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
       final jobs = await _jobsService.getJobs(limit: 100);
       if (!mounted) return;
+
       setState(() {
         _jobsOffers = jobs
             .where((j) => j.status == JobStatus.offersReceived)
@@ -280,13 +313,26 @@ class _JobsScreenState extends State<JobsScreen>
             .where((j) => j.status == JobStatus.completed)
             .toList();
         _isLoading = false;
+        _error = null;
       });
+
+      // Announce success to screen readers
+      if (mounted) {
+        context.announce('Lucrări încărcate cu succes');
+      }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Eroare la încărcarea lucrărilor: $e')),
-      );
+
+      final appError = AppError.fromException(e);
+      setState(() {
+        _isLoading = false;
+        _error = appError;
+      });
+
+      // Announce error to screen readers
+      if (mounted) {
+        context.announce('Eroare la încărcarea lucrărilor');
+      }
     }
   }
 }
