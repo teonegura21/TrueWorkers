@@ -107,64 +107,71 @@ class TrustDecorations {
 }
 
 // === APP THEME CLASS ===
+// Consolidated to use MesteriColors only
 
 class AppTheme {
-  // === BRAND COLORS - RE-EXPORTED FOR BACKWARD COMPATIBILITY ===
-  static const Color primaryColor = Color(0xFF2196F3);
-  static const Color primaryDark = Color(0xFF1976D2);
-  static const Color primaryLight = Color(0xFFBBDEFB);
-  static const Color secondaryColor = Color(0xFFFF9800);
-  static const Color accentColor = Color(0xFFFF5722);
-  static const Color successColor = Color(0xFF4CAF50);
-  static const Color warningColor = Color(0xFFFF9800);
-  static const Color errorColor = Color(0xFFF44336);
-  static const Color onSurfaceColor = Color(0xFF212121);
-  static const Color onSurfaceSecondary = Color(0xFF757575);
-  static const Color onSurfaceTertiary = Color(0xFF9E9E9E);
+  // === BRAND COLORS - ALIASED TO MESTERI COLORS FOR COMPATIBILITY ===
+  // Use MesteriColors.primary directly in new code
+  static const Color primaryColor = MesteriColors.primary;
+  static const Color primaryDark = MesteriColors.primaryDark;
+  static const Color primaryLight = MesteriColors.primaryLight;
+  static const Color secondaryColor = MesteriColors.secondary;
+  static const Color accentColor = MesteriColors.secondary;
+  static const Color successColor = MesteriColors.success;
+  static const Color warningColor = MesteriColors.warning;
+  static const Color errorColor = MesteriColors.error;
+  static const Color onSurfaceColor = MesteriColors.onSurface;
+  static const Color onSurfaceSecondary = MesteriColors.onSurfaceSecondary;
+  static const Color onSurfaceTertiary = MesteriColors.onSurfaceTertiary;
 
   // Surface colors
-  static const Color surfaceColor = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF5F5F5);
-  static const Color backgroundColor = Color(0xFFFAFAFA);
-  static const Color outlineColor = Color(0xFFE0E0E0);
+  static const Color surfaceColor = MesteriColors.surface;
+  static const Color surfaceVariant = MesteriColors.surfaceVariant;
+  static const Color backgroundColor = MesteriColors.background;
+  static const Color outlineColor = MesteriColors.outline;
 
-  // Opacity variants
-  static final Color primaryUltraLowOpacity = primaryColor.withOpacity(0.04);
-  static final Color primaryVeryLowOpacity = primaryColor.withOpacity(0.08);
-  static final Color primaryLowOpacity = primaryColor.withOpacity(0.16);
-  static final Color primaryHighOpacity = primaryColor.withOpacity(0.28);
-  static final Color successLowOpacity = successColor.withOpacity(0.1);
-  static final Color successVeryLowOpacity = successColor.withOpacity(0.05);
-  static final Color successHighOpacity = successColor.withOpacity(0.2);
-  static final Color warningLowOpacity = warningColor.withOpacity(0.1);
-  static final Color warningHighOpacity = warningColor.withOpacity(0.2);
-  static final Color errorLowOpacity = errorColor.withOpacity(0.1);
+  // Opacity variants - aliased to MesteriColors
+  static final Color primaryUltraLowOpacity = MesteriColors.primaryUltraLowOpacity;
+  static final Color primaryVeryLowOpacity = MesteriColors.primaryVeryLowOpacity;
+  static final Color primaryLowOpacity = MesteriColors.primaryLowOpacity;
+  static final Color primaryHighOpacity = MesteriColors.primaryHighOpacity;
+  static final Color successLowOpacity = MesteriColors.successLowOpacity;
+  static final Color successVeryLowOpacity = MesteriColors.successVeryLowOpacity;
+  static final Color successHighOpacity = MesteriColors.successHighOpacity;
+  static final Color warningLowOpacity = MesteriColors.warningLowOpacity;
+  static final Color warningHighOpacity = MesteriColors.warningHighOpacity;
+  static final Color errorLowOpacity = MesteriColors.errorLowOpacity;
 
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
+        seedColor: MesteriColors.primary,
+        primary: MesteriColors.primary,
+        secondary: MesteriColors.secondary,
+        error: MesteriColors.error,
+        surface: MesteriColors.surface,
         brightness: Brightness.light,
       ),
+      scaffoldBackgroundColor: MesteriColors.background,
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: primaryColor,
+        backgroundColor: MesteriColors.primary,
         foregroundColor: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
+          backgroundColor: MesteriColors.primary,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: MesteriColors.surfaceVariant,
       ),
     );
   }
@@ -173,18 +180,21 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
+        seedColor: MesteriColors.primary,
+        primary: MesteriColors.primary,
+        secondary: MesteriColors.secondary,
+        error: MesteriColors.error,
         brightness: Brightness.dark,
       ),
       appBarTheme: const AppBarTheme(elevation: 0, centerTitle: true),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
       ),
     );

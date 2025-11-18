@@ -11,10 +11,10 @@ class AppConfig {
   // Pagination Configuration
   static const int defaultPageSize = 20;
 
-  // Mock Data Toggle
+  // Mock Data Toggle - DISABLED for production
   static const bool useMockData = bool.fromEnvironment(
     'USE_MOCK_DATA',
-    defaultValue: true, // Default to true for development
+    defaultValue: false, // Use real API by default
   );
 
   // Job Categories for dropdown selection
